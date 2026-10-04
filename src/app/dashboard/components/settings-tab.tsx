@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, ShieldCheck, Check, Globe, AlertCircle, ExternalLink, Trash2, ArrowUpRight, Copy } from "lucide-react";
-import type { Page } from "@/lib/types";
+import { KeyRound, ShieldCheck, Check, Globe, AlertCircle, Trash2, ArrowUpRight, Copy, User as UserIcon, Crown } from "lucide-react";
+import type { Page, User } from "@/lib/types";
 
 interface SettingsTabProps {
   initialToken: string;
   onSaveToken: (token: string) => void;
   activePage?: Page;
   onUpdateCustomDomain?: (domain: string | null) => Promise<void>;
+  currentUser?: User | null;
+  onOpenProfileModal?: () => void;
+  pageCount?: number;
 }
 
 export function SettingsTab({
@@ -16,6 +19,9 @@ export function SettingsTab({
   onSaveToken,
   activePage,
   onUpdateCustomDomain,
+  currentUser,
+  onOpenProfileModal,
+  pageCount = 0,
 }: SettingsTabProps) {
   // ADMIN_TOKEN state
   const [token, setToken] = useState(initialToken);
@@ -48,8 +54,8 @@ export function SettingsTab({
       await onUpdateCustomDomain(cleanDomain || null);
       setDomainSuccess(true);
       setTimeout(() => setDomainSuccess(false), 3000);
-    } catch (err: any) {
-      setDomainError(err?.message || "Gagal menyimpan domain kustom.");
+    } catch (err: unknown) {
+      setDomainError(err instanceof Error ? err.message : "Gagal menyimpan domain kustom.");
     } finally {
       setIsSavingDomain(false);
     }
@@ -64,8 +70,8 @@ export function SettingsTab({
       setDomainInput("");
       setDomainSuccess(true);
       setTimeout(() => setDomainSuccess(false), 3000);
-    } catch (err: any) {
-      setDomainError(err?.message || "Gagal menghapus domain.");
+    } catch (err: unknown) {
+      setDomainError(err instanceof Error ? err.message : "Gagal menghapus domain.");
     } finally {
       setIsSavingDomain(false);
     }
@@ -77,10 +83,66 @@ export function SettingsTab({
     setTimeout(() => setCopiedRecord(null), 2000);
   }
 
+  const isPro = currentUser?.role === "admin" || currentUser?.plan === "pro";
+
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* SECTION 0: USER PROFILE & SUBSCRIPTION STATUS */}
+      {currentUser && (
+        <div className="lg:col-span-12 rounded-3xl border border-border bg-card p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-muted border border-border text-lg font-bold text-foreground">
+                {currentUser.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={currentUser.avatar} alt={currentUser.name} className="h-full w-full object-cover" />
+                ) : (
+                  <span>{currentUser.name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-display text-base sm:text-lg font-bold text-foreground">
+                    {currentUser.name}
+                  </h3>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider ${
+                      isPro
+                        ? "bg-amber-500/20 text-amber-500 border border-amber-500/30 shadow-2xs"
+                        : "bg-muted text-muted-foreground border border-border"
+                    }`}
+                  >
+                    {isPro && <Crown className="h-3 w-3 fill-current" />}
+                    {isPro ? "OpenLynk PRO" : "Paket Free"}
+                  </span>
+                  {currentUser.role === "admin" && (
+                    <span className="rounded-full bg-blue-500/10 border border-blue-500/30 px-2 py-0.5 text-[10px] font-semibold text-blue-400">
+                      Admin
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground font-mono">
+                  {currentUser.email} • {isPro ? "Halaman Unlimited" : `Kuota: ${pageCount}/1 Halaman`}
+                </p>
+              </div>
+            </div>
+
+            {onOpenProfileModal && (
+              <button
+                type="button"
+                onClick={onOpenProfileModal}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground text-background px-5 py-2.5 text-xs font-bold shadow-xs hover:opacity-90 active:scale-95 transition-all cursor-pointer self-start sm:self-auto"
+              >
+                <UserIcon className="h-4 w-4" />
+                <span>Kelola Profil & Langganan</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* SECTION 1: CUSTOM DOMAIN SETTINGS */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="lg:col-span-7 xl:col-span-7 rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
@@ -238,7 +300,7 @@ export function SettingsTab({
       </div>
 
       {/* SECTION 2: ADMIN TOKEN & SECURITY */}
-      <div className="rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="lg:col-span-5 xl:col-span-5 rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
         <div className="flex items-center gap-3 border-b border-border/60 pb-4">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
             <KeyRound className="h-5 w-5" />

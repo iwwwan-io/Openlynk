@@ -34,6 +34,22 @@ export async function POST(req: Request) {
   if (db.pages.some((p) => p.slug === slug)) {
     return NextResponse.json({ error: "slug sudah dipakai" }, { status: 409 });
   }
+
+  // Batasan Paket: User yang tidak berlangganan Pro hanya bisa memiliki 1 halaman
+  const isPro = user ? (user.role === "admin" || user.plan === "pro") : false;
+  const currentUserId = user ? user.id : "usr_demo";
+  const userPages = db.pages.filter((p) => p.userId === currentUserId);
+
+  if (!isPro && userPages.length >= 1) {
+    return NextResponse.json(
+      {
+        error: "Pengguna paket Free hanya dapat membuat 1 halaman. Upgrade ke OpenLynk Pro untuk membuat halaman tanpa batas!",
+        requiresPro: true,
+      },
+      { status: 403 }
+    );
+  }
+
   if (db.pages.length >= 50) {
     return NextResponse.json({ error: "batas page tercapai" }, { status: 400 });
   }
@@ -79,6 +95,9 @@ export async function PATCH(req: Request) {
   const db = await getDb();
   const page = db.pages.find((p) => p.id === body.id);
   if (!page) return NextResponse.json({ error: "page tidak ada" }, { status: 404 });
+  if (user && !page.userId) {
+    page.userId = user.id;
+  }
   if (body.name !== undefined) page.name = body.name.slice(0, 80);
   if (body.bio !== undefined) page.bio = body.bio.slice(0, 200);
   if (body.image !== undefined) page.image = body.image ? body.image.trim().slice(0, 500) : undefined;

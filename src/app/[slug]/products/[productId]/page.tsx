@@ -44,12 +44,12 @@ export default async function ProductDetailPage({
   const { slug, productId } = await params;
   const db = await getDb();
   const page = db.pages.find((p) => p.slug === slug && p.isPublic);
-  if (!page) return notFound();
+  if (!page) notFound();
 
   const product = db.products.find(
     (p) => p.id === productId && p.pageId === page.id && p.isActive
   );
-  if (!product) return notFound();
+  if (!product) notFound();
 
   const dark = page.darkMode;
   const accent = page.accentColor;

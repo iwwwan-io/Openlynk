@@ -23,7 +23,6 @@ import {
   Image as ImageIcon,
   Calendar as CalendarIcon,
   Coffee,
-  Zap,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -373,7 +372,7 @@ export function GridEditor({
   bento,
   products,
   onAddClick,
-  onResize,
+  onResize: _onResize,
   onRemove,
   onEdit,
 }: {
@@ -475,18 +474,22 @@ export function GridEditor({
     <div className="space-y-3">
       {/* Studio Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 rounded-2xl border border-border/80 bg-card p-3 sm:p-4 shadow-2xs">
-        {/* Left Section: Primary Action CTA */}
-        <div className="flex items-center justify-between sm:justify-start gap-3">
+        {/* Left Section: Primary Action CTA & Card Count */}
+        <div className="flex items-center gap-2.5">
           {onAddClick && (
             <button
               type="button"
               onClick={onAddClick}
-              className="inline-flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-semibold text-white shadow-xs transition-all hover:bg-zinc-800 active:scale-95 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+              className="inline-flex items-center gap-2 rounded-xl bg-foreground text-background px-4 py-2 text-xs font-semibold shadow-xs transition-all hover:opacity-90 active:scale-95 cursor-pointer"
             >
               <Plus className="h-4 w-4" />
               <span>Tambah Kartu</span>
             </button>
           )}
+
+          <span className="hidden sm:inline-flex items-center rounded-xl bg-muted/70 px-2.5 py-1.5 text-xs font-mono font-medium text-muted-foreground">
+            {bento.length} Kartu
+          </span>
 
           {/* Mobile Auto-Save Indicator */}
           <div className="sm:hidden flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground">
@@ -499,13 +502,18 @@ export function GridEditor({
           </div>
         </div>
 
+        {/* Center Hint on Desktop */}
+        <div className="hidden xl:flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>Tarik kartu untuk mengatur posisi bento • Klik untuk mengedit isi & ukuran</span>
+        </div>
+
         {/* Right Section: Viewport Mode Switcher & Desktop Auto-Save Indicator */}
         <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
           <div className="flex items-center rounded-xl border border-border/80 bg-muted/60 p-1 text-xs shadow-2xs">
             <button
               type="button"
               onClick={() => switchDeviceView("desktop")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all cursor-pointer ${
                 deviceView === "desktop"
                   ? "bg-card text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
@@ -525,12 +533,12 @@ export function GridEditor({
             <button
               type="button"
               onClick={() => switchDeviceView("mobile")}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all cursor-pointer ${
                 deviceView === "mobile"
                   ? "bg-card text-foreground shadow-2xs font-semibold"
                   : "text-muted-foreground hover:text-foreground"
               }`}
-              title="Pratinjau Mobile (2 Kolom)"
+              title="Pratinjau Layar Ponsel (2 Kolom)"
             >
               <Smartphone className="h-3.5 w-3.5" />
               <span>Mobile</span>
@@ -553,23 +561,34 @@ export function GridEditor({
               }`}
             />
             <span className="font-mono text-[11px]">
-              {saved ? "Otomatis tersimpan" : "Menyimpan posisi..."}
+              {saved ? "Tersimpan otomatis" : "Menyimpan posisi..."}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Grid Canvas */}
+      {/* Grid Canvas Frame */}
       <div
         ref={containerRef}
-        className={`relative mx-auto rounded-3xl border border-border/70 bg-muted/10 p-3 sm:p-5 transition-all duration-300 min-h-[420px] ${
-          deviceView === "mobile" ? "max-w-md shadow-xl" : "w-full"
+        className={`relative mx-auto transition-all duration-300 min-h-[420px] ${
+          deviceView === "mobile"
+            ? "max-w-[460px] rounded-[40px] border-[5px] border-border/80 bg-card/60 shadow-2xl p-4 sm:p-5 ring-1 ring-border/50"
+            : "w-full rounded-3xl border border-border/70 bg-muted/10 p-3 sm:p-6"
         }`}
         style={{
           backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
           backgroundSize: "20px 20px",
         }}
       >
+        {/* Device Notch Indicator when in Mobile Mode on Desktop */}
+        {deviceView === "mobile" && (
+          <div className="mb-4 flex flex-col items-center justify-center gap-1 text-center border-b border-border/50 pb-2">
+            <div className="h-3.5 w-24 rounded-full bg-foreground/15 mb-1" />
+            <span className="text-[10px] font-mono text-muted-foreground">
+              Pratinjau Layar Ponsel (2 Kolom)
+            </span>
+          </div>
+        )}
         {bento.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <Sparkles className="h-8 w-8 mb-2 text-muted-foreground/60" />

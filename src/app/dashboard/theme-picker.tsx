@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ThemeName } from "@/lib/themes";
+import { type ThemeName, themeVars } from "@/lib/themes";
 import type { SocialLinks, SocialPlatform } from "@/lib/types";
 import { normalizeSocialUrl } from "@/lib/types";
 import {
@@ -430,7 +430,9 @@ export function ThemePicker({
     });
 
   return (
-    <div className="space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* LEFT COLUMN: EDITING PANELS */}
+      <div className="lg:col-span-7 xl:col-span-7 space-y-6">
       {/* 1. Profile & Banner Section */}
       <div className="rounded-2xl border border-border bg-card p-4 sm:p-6 shadow-xs space-y-6">
         <div>
@@ -802,10 +804,148 @@ export function ThemePicker({
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="rounded-full bg-zinc-900 px-7 py-3 text-sm font-semibold text-white shadow-md transition-all hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+          className="rounded-full bg-zinc-900 px-7 py-3 text-sm font-semibold text-white shadow-md transition-all hover:opacity-90 active:scale-95 disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-zinc-900 cursor-pointer"
         >
           {saving ? "Menyimpan…" : "Simpan Tampilan"}
         </button>
+      </div>
+      </div>
+
+      {/* RIGHT COLUMN ON DESKTOP: LIVE INTERACTIVE PHONE MOCKUP */}
+      <div className="hidden lg:flex lg:col-span-5 xl:col-span-5 flex-col items-center sticky top-20">
+        <div className="w-full max-w-[340px] flex items-center justify-between px-2 mb-2.5 text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-foreground">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Pratinjau Langsung (WYSIWYG)</span>
+          </div>
+          <span className="text-[10px] font-mono rounded-md bg-muted px-2 py-0.5 text-muted-foreground">
+            {eDark ? "🌙 Gelap" : "☀️ Terang"}
+          </span>
+        </div>
+
+        {/* Smartphone Device Mockup Frame */}
+        <div className="w-full max-w-[340px] rounded-[44px] border-[6px] border-zinc-800 dark:border-zinc-700 bg-zinc-950 p-2 shadow-2xl ring-1 ring-black/10">
+          {/* Inner Screen */}
+          <div
+            className="relative rounded-[36px] overflow-hidden overflow-y-auto max-h-[620px] scrollbar-none transition-colors duration-300"
+            style={{
+              ...themeVars(eTheme as ThemeName, eDark),
+              backgroundColor: "var(--background)",
+              color: "var(--foreground)",
+            }}
+          >
+            {/* Dynamic Notch / Island */}
+            <div className="sticky top-0 z-30 pt-2 pb-1 bg-inherit flex justify-center">
+              <div className="h-3.5 w-20 rounded-full bg-zinc-900/90 dark:bg-black/90 shadow-2xs" />
+            </div>
+
+            {/* Cover Banner Preview */}
+            <div className="relative h-24 w-full overflow-hidden bg-muted/40">
+              {eBanner ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={eBanner} alt="Banner" className="h-full w-full object-cover" />
+              ) : (
+                <div
+                  className="h-full w-full"
+                  style={{
+                    background: `linear-gradient(135deg, ${eAccent}35, transparent)`,
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Profile Avatar & Info */}
+            <div className="px-4 pt-0 pb-3 text-center -mt-8 relative z-10 space-y-1.5">
+              <div
+                className="mx-auto flex h-16 w-16 items-center justify-center overflow-hidden rounded-full font-display text-xl font-bold text-white shadow-md ring-4 ring-[var(--background)]"
+                style={{
+                  backgroundColor: eAccent,
+                }}
+              >
+                {eImage ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={eImage} alt={eName} className="h-full w-full object-cover" />
+                ) : (
+                  (eName || "A").slice(0, 1).toUpperCase()
+                )}
+              </div>
+
+              <div>
+                <h4 className="font-display text-sm font-bold truncate">
+                  {eName || "Nama Profil Anda"}
+                </h4>
+                {eBio && (
+                  <p className="text-[10px] opacity-75 line-clamp-2 mt-0.5 max-w-[240px] mx-auto leading-relaxed">
+                    {eBio}
+                  </p>
+                )}
+              </div>
+
+              {/* Social Icons Bar in Mockup */}
+              {activeSocialList.length > 0 && (
+                <div className="flex items-center justify-center gap-1.5 pt-1 flex-wrap">
+                  {activeSocialList.map(({ key, Icon, color }) => (
+                    <span
+                      key={key}
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--card)] border border-[var(--border)] shadow-2xs text-[11px]"
+                      style={{ color }}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Live Bento Cards Preview in Mockup */}
+            <div className="px-3.5 pb-6 space-y-2">
+              <div className="text-[9px] font-bold uppercase tracking-wider opacity-60 text-center mb-1">
+                Contoh Kartu Bento Profil
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-left">
+                {/* Sample Card 1: Featured Link */}
+                <div className="col-span-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-2xs flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="h-7 w-7 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0"
+                      style={{ backgroundColor: eAccent }}
+                    >
+                      ★
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate">Tautan Unggulan</p>
+                      <p className="text-[10px] opacity-60 truncate">openlynk.id</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold opacity-75">↗</span>
+                </div>
+
+                {/* Sample Card 2: Toko Produk */}
+                <div className="col-span-1 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-2xs space-y-1.5">
+                  <span className="rounded-md bg-emerald-500/10 text-emerald-500 px-1.5 py-0.5 text-[9px] font-bold">
+                    PRODUK
+                  </span>
+                  <p className="text-xs font-bold truncate">Ebook & Template</p>
+                  <p className="font-mono text-[10px] font-bold" style={{ color: eAccent }}>
+                    Rp 99.000
+                  </p>
+                </div>
+
+                {/* Sample Card 3: Traktir Kopi */}
+                <div className="col-span-1 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-2xs space-y-1.5">
+                  <span className="rounded-md bg-amber-500/10 text-amber-500 px-1.5 py-0.5 text-[9px] font-bold">
+                    SAWER
+                  </span>
+                  <p className="text-xs font-bold truncate">Traktir Kopi ☕</p>
+                  <p className="font-mono text-[10px] font-semibold opacity-75">
+                    Dukungan Kreator
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

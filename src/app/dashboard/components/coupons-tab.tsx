@@ -7,20 +7,16 @@ import {
   Tag,
   Plus,
   Trash2,
-  CheckCircle2,
-  XCircle,
   Copy,
   Check,
   Calendar,
   Layers,
   Sparkles,
-  Percent,
-  Coins,
   Search,
 } from "lucide-react";
 
 interface CouponsTabProps {
-  pageId: string;
+  pageId?: string;
   coupons: Coupon[];
   onCreateCoupon: (data: {
     code: string;
@@ -35,7 +31,6 @@ interface CouponsTabProps {
 }
 
 export function CouponsTab({
-  pageId,
   coupons,
   onCreateCoupon,
   onToggleActive,

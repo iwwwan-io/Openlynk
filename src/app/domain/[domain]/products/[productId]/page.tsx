@@ -33,7 +33,7 @@ export default async function CustomDomainProductPage({
   const page = db.pages.find(
     (p) => p.customDomain?.toLowerCase() === domain.toLowerCase() && p.isPublic
   );
-  if (!page) return notFound();
+  if (!page) notFound();
 
   return ProductDetailPage({
     params: Promise.resolve({ slug: page.slug, productId }),

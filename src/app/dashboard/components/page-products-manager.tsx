@@ -6,19 +6,15 @@ import type { Page, Product } from "@/lib/types";
 import { formatIDR } from "@/lib/types";
 import {
   ShoppingBag,
-  Upload,
   Plus,
   Loader2,
-  ExternalLink,
   Edit3,
   Trash2,
   FileCheck,
-  ImageIcon,
   Sparkles,
   Search,
   Zap,
   Package,
-  CheckCircle2,
   AlertCircle,
   X,
   LayoutGrid,
@@ -68,7 +64,7 @@ export function PageProductsManager({
   // Form State
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
-  const [kind, setKind] = useState<"digital" | "fisik">("digital");
+  const [kind] = useState<"digital" | "fisik">("digital");
   const [desc, setDesc] = useState("");
   const [stock, setStock] = useState("");
   const [isUnlimited, setIsUnlimited] = useState(true);

@@ -225,7 +225,7 @@ export default async function SlugPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const db = await getDb();
   const page = db.pages.find((p) => p.slug === slug && p.isPublic);
-  if (!page) return notFound();
+  if (!page) notFound();
   const dark = page.darkMode;
   const accent = page.accentColor;
   const vars = themeVars(page.theme, dark, accent) as CSSProperties;

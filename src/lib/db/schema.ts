@@ -10,6 +10,7 @@ export const users = sqliteTable(
     name: text("name").notNull(),
     avatar: text("avatar"),
     role: text("role", { enum: ["creator", "admin"] }).notNull().default("creator"),
+    plan: text("plan", { enum: ["free", "pro"] }).notNull().default("free"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

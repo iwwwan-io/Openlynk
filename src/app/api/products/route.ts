@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAdmin, getSessionUser, canManagePage } from "@/lib/auth";
+import { getSessionUser, canManagePage } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/store";
 import { uid } from "@/lib/types";
 

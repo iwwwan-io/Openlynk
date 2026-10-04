@@ -89,12 +89,15 @@ export function normalizeSocialUrl(platform: SocialPlatform, value: string): str
   }
 }
 
+export type UserPlan = "free" | "pro";
+
 export type User = {
   id: string;
   email: string;
   name: string;
   avatar?: string;
   role: "creator" | "admin";
+  plan?: UserPlan;
   createdAt: string;
   updatedAt: string;
 };

@@ -47,7 +47,7 @@ export function getImageKit(): ImageKit | null {
  * Mengunggah file ke ImageKit jika dikonfigurasi, atau ke sistem berkas lokal (fallback).
  */
 export async function uploadFile(options: UploadOptions): Promise<UploadResult> {
-  const { buffer, fileName, mimeType, isPrivate = false } = options;
+  const { buffer, fileName, mimeType: _mimeType, isPrivate = false } = options;
   const ik = getImageKit();
 
   if (ik) {

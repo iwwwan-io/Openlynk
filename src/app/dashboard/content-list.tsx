@@ -82,12 +82,28 @@ export function ContentList({
     );
   }
 
+  const linkCount = bento.filter((x) => x.type === "link").length;
+  const prodCount = bento.filter((x) => x.type === "product").length;
+  const mediaCount = bento.filter((x) => ["image", "video", "music"].includes(x.type)).length;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
         <div>
           <h3 className="font-display text-base font-bold text-foreground">Daftar Semua Kartu ({bento.length})</h3>
           <p className="text-xs text-muted-foreground">Seret untuk mengubah urutan tampilan atau ubah ukuran tiap kartu</p>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap text-xs">
+          <span className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-mono font-medium text-muted-foreground">
+            {linkCount} Link
+          </span>
+          <span className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-mono font-medium text-muted-foreground">
+            {prodCount} Produk
+          </span>
+          <span className="rounded-lg bg-muted px-2.5 py-1 text-[11px] font-mono font-medium text-muted-foreground">
+            {mediaCount} Media
+          </span>
         </div>
       </div>
 

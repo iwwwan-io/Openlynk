@@ -6,7 +6,6 @@ import {
   Download,
   Search,
   CheckCircle2,
-  FileCheck,
   AlertCircle,
   ExternalLink,
   ArrowRight,
@@ -188,6 +187,7 @@ export default function AksesPage() {
                   >
                     <div className="flex items-start gap-3.5">
                       {item.productImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={item.productImage}
                           alt={item.productName}

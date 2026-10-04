@@ -15,6 +15,7 @@ import { GridEditor } from "../grid-editor";
 import { ThemePicker } from "../theme-picker";
 import { ContentList } from "../content-list";
 import { PageProductsManager } from "./page-products-manager";
+import { QrModal } from "../qr-modal";
 
 export type StudioSubtab = "studio" | "theme" | "content" | "products";
 
@@ -132,18 +133,19 @@ export function StudioWorkspace({
                 Aktif
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-              <span className="font-mono">/{page.slug}</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5 flex-wrap">
+              <span className="font-mono text-foreground font-semibold">/{page.slug}</span>
+              <span>·</span>
               <button
                 type="button"
                 onClick={copyProfileUrl}
-                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-                title="Salin Tautan"
+                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                title="Salin Tautan Profil"
               >
                 {copied ? (
                   <>
                     <Check className="h-3 w-3 text-emerald-500" />
-                    <span className="text-emerald-500">Tersalin</span>
+                    <span className="text-emerald-500 font-semibold">Tersalin</span>
                   </>
                 ) : (
                   <>
@@ -158,10 +160,13 @@ export function StudioWorkspace({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                title="Buka halaman publik"
               >
                 <span>Lihat Live</span>
                 <ExternalLink className="h-3 w-3" />
               </a>
+              <span>·</span>
+              <QrModal slug={page.slug} pageName={page.name} />
             </div>
           </div>
         </div>

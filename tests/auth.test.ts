@@ -104,6 +104,13 @@ describe("Page Ownership & Multi-Tenancy Authorization", () => {
     const pageAId = uid("page_a");
     const now = new Date().toISOString();
 
+    // Buat User A terlebih dahulu agar foreign key valid
+    await client.execute({
+      sql: `INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at)
+            VALUES (?, ?, 'dummy_hash', ?, ?, ?, ?);`,
+      args: [userA.id, userA.email, userA.name, userA.role, now, now],
+    });
+
     // Buat page milik User A
     await client.execute({
       sql: `INSERT INTO pages (id, user_id, slug, name, bio, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
@@ -125,6 +132,7 @@ describe("Page Ownership & Multi-Tenancy Authorization", () => {
 
     // Bersihkan
     await client.execute({ sql: "DELETE FROM pages WHERE id = ?;", args: [pageAId] });
+    await client.execute({ sql: "DELETE FROM users WHERE id = ?;", args: [userA.id] });
   });
 });
 
@@ -251,5 +259,182 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
     await client.execute({ sql: "DELETE FROM pages WHERE id = ?;", args: [pageBId] });
     await client.execute({ sql: "DELETE FROM users WHERE email IN (?, ?);", args: [emailA, emailB] });
   });
+
+  test("User Profile Update & Plan Toggle via PATCH /api/auth/me", async () => {
+    const { POST: registerPost } = await import("@/app/api/auth/register/route");
+    const { POST: loginPost } = await import("@/app/api/auth/login/route");
+    const { GET: meGet, PATCH: mePatch } = await import("@/app/api/auth/me/route");
+
+    const email = `profile_user_${Date.now()}@openlynk.id`;
+    const password = "password123!";
+
+    // 1. Register & Login
+    await registerPost(
+      new Request("http://localhost/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name: "Nama Awal" }),
+      })
+    );
+
+    const loginRes = await loginPost(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+    );
+    const { token } = await loginRes.json();
+
+    // 2. Cek default plan adalah 'free'
+    const initialMe = await meGet(
+      new Request("http://localhost/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    );
+    const initialData = await initialMe.json();
+    expect(initialData.user.plan).toBe("free");
+    expect(initialData.user.name).toBe("Nama Awal");
+
+    // 3. Update nama & avatar
+    const patchRes = await mePatch(
+      new Request("http://localhost/api/auth/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: "Nama Baru Kreator",
+          avatar: "https://example.com/avatar.png",
+          plan: "pro",
+        }),
+      })
+    );
+    expect(patchRes.status).toBe(200);
+    const patchData = await patchRes.json();
+    expect(patchData.user.name).toBe("Nama Baru Kreator");
+    expect(patchData.user.avatar).toBe("https://example.com/avatar.png");
+    expect(patchData.user.plan).toBe("pro");
+
+    // 4. Verifikasi kembali via GET /api/auth/me
+    const verifyMe = await meGet(
+      new Request("http://localhost/api/auth/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    );
+    const verifyData = await verifyMe.json();
+    expect(verifyData.user.plan).toBe("pro");
+    expect(verifyData.user.name).toBe("Nama Baru Kreator");
+
+    // Bersihkan
+    await client.execute({ sql: "DELETE FROM users WHERE email = ?;", args: [email] });
+  });
+
+  test("User Free hanya bisa membuat 1 halaman, Pro dapat membuat banyak halaman", async () => {
+    const { POST: registerPost } = await import("@/app/api/auth/register/route");
+    const { POST: loginPost } = await import("@/app/api/auth/login/route");
+    const { POST: pagesPost } = await import("@/app/api/pages/route");
+    const { PATCH: mePatch } = await import("@/app/api/auth/me/route");
+
+    const email = `quota_user_${Date.now()}@openlynk.id`;
+    const password = "passwordQuota123!";
+
+    // 1. Register & Login (paket Free default)
+    await registerPost(
+      new Request("http://localhost/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name: "User Kuota" }),
+      })
+    );
+
+    const loginRes = await loginPost(
+      new Request("http://localhost/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+    );
+    const { token } = await loginRes.json();
+
+    const slug1 = `slug-free-1-${Date.now()}`;
+    const slug2 = `slug-free-2-${Date.now()}`;
+    const slug3 = `slug-pro-3-${Date.now()}`;
+
+    // 2. Buat halaman pertama (Halaman #1) -> HARUS BERHASIL (201 Created)
+    const createPage1Res = await pagesPost(
+      new Request("http://localhost/api/pages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ slug: slug1, name: "Halaman Pertama" }),
+      })
+    );
+    expect(createPage1Res.status).toBe(201);
+    const page1Data = await createPage1Res.json();
+    expect(page1Data.slug).toBe(slug1);
+
+    // 3. Coba buat halaman kedua (Halaman #2) saat masih paket Free -> HARUS DITOLAK 403
+    const createPage2Res = await pagesPost(
+      new Request("http://localhost/api/pages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ slug: slug2, name: "Halaman Kedua Gagal" }),
+      })
+    );
+    expect(createPage2Res.status).toBe(403);
+    const page2Data = await createPage2Res.json();
+    expect(page2Data.requiresPro).toBe(true);
+    expect(page2Data.error).toContain("Pengguna paket Free hanya dapat membuat 1 halaman");
+
+    // 4. Upgrade user ke paket 'pro'
+    await mePatch(
+      new Request("http://localhost/api/auth/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan: "pro" }),
+      })
+    );
+
+    // 5. Coba buat halaman kedua (Halaman #2) setelah Pro -> SEKARANG HARUS BERHASIL (201)
+    const createPage2AfterPro = await pagesPost(
+      new Request("http://localhost/api/pages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ slug: slug2, name: "Halaman Kedua Berhasil" }),
+      })
+    );
+    expect(createPage2AfterPro.status).toBe(201);
+
+    // 6. Buat halaman ketiga (Halaman #3) -> HARUS BERHASIL (201)
+    const createPage3Res = await pagesPost(
+      new Request("http://localhost/api/pages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ slug: slug3, name: "Halaman Ketiga Berhasil" }),
+      })
+    );
+    expect(createPage3Res.status).toBe(201);
+
+    // Bersihkan data uji coba
+    await client.execute({ sql: "DELETE FROM pages WHERE slug IN (?, ?, ?);", args: [slug1, slug2, slug3] });
+    await client.execute({ sql: "DELETE FROM users WHERE email = ?;", args: [email] });
+  });
 });
+
 

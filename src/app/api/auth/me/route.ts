@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/auth";
+import { getSessionUser, updateUserProfile } from "@/lib/auth";
 import { client, ensureDbInitialized } from "@/lib/db";
 import type { Page, BentoItem, SocialLinks, PageTheme } from "@/lib/types";
 
@@ -12,11 +12,14 @@ export async function GET(req: Request) {
 
     await ensureDbInitialized();
 
+    // Pastikan halaman yang belum bertuan (unclaimed/legacy) terhubung ke akun demo
+    await client.execute("UPDATE pages SET user_id = 'usr_demo' WHERE user_id IS NULL;").catch(() => {});
+
     const sql =
       user.role === "admin"
         ? "SELECT * FROM pages ORDER BY created_at DESC;"
-        : "SELECT * FROM pages WHERE user_id = ? ORDER BY created_at DESC;";
-    const args = user.role === "admin" ? [] : [user.id];
+        : "SELECT * FROM pages WHERE user_id = ? OR (user_id IS NULL AND ? = 'usr_demo') ORDER BY created_at DESC;";
+    const args = user.role === "admin" ? [] : [user.id, user.id];
 
     const pagesRes = await client.execute({ sql, args });
 
@@ -24,6 +27,7 @@ export async function GET(req: Request) {
       id: String(r.id),
       userId: r.user_id ? String(r.user_id) : undefined,
       slug: String(r.slug),
+      customDomain: r.custom_domain ? String(r.custom_domain) : undefined,
       name: String(r.name),
       bio: String(r.bio ?? ""),
       image: r.image ? String(r.image) : undefined,
@@ -48,6 +52,31 @@ export async function GET(req: Request) {
     return NextResponse.json({ user, pages });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Gagal mengambil data user";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: Request) {
+  try {
+    const user = await getSessionUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = (await req.json()) as {
+      name?: string;
+      avatar?: string;
+      plan?: "free" | "pro";
+    };
+
+    const updatedUser = await updateUserProfile(user.id, body);
+    if (!updatedUser) {
+      return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true, user: updatedUser });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Gagal memperbarui profil";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

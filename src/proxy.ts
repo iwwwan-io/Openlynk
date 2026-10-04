@@ -9,7 +9,7 @@ const PLATFORM_DOMAINS = [
   "www.openlynk.id",
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host") || "";
   const hostname = host.split(":")[0].toLowerCase();

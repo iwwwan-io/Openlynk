@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { usePathname } from "next/navigation";
-import type { Page, Product, Order, BentoSize, Coupon, SocialLinks } from "@/lib/types";
+import { usePathname, useRouter } from "next/navigation";
+import type { Page, Product, Order, BentoSize, Coupon, SocialLinks, User } from "@/lib/types";
 import { DashboardHeader, type DashboardTab } from "../components/dashboard-header";
 import { PagesOverview } from "../components/pages-overview";
 import { StudioWorkspace, type StudioSubtab } from "../components/studio-workspace";
@@ -12,6 +12,7 @@ import { AnalyticsTab, type AnalyticsStats } from "../components/analytics-tab";
 import { FinanceTab } from "../components/finance-tab";
 import { SettingsTab } from "../components/settings-tab";
 import { NewPageModal } from "../components/new-page-modal";
+import { UserProfileModal } from "../components/user-profile-modal";
 import { AddCardModal } from "../add-card-modal";
 import { parseDashboardPath, buildDashboardPath } from "../dashboard-routing";
 
@@ -41,6 +42,7 @@ function headers(): HeadersInit {
 }
 
 export default function Dashboard() {
+  const router = useRouter();
   const pathname = usePathname() || "/dashboard";
   const initialRoute = parseDashboardPath(pathname);
 
@@ -64,6 +66,8 @@ export default function Dashboard() {
   });
   const [subs, setSubs] = useState(0);
 
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   const storedToken = useSyncExternalStore(subscribeStorage, getStoredToken, getServerToken);
   const [customToken, setCustomToken] = useState<string | null>(null);
   const adminToken = customToken !== null ? customToken : storedToken;
@@ -72,6 +76,7 @@ export default function Dashboard() {
   // Modals
   const [showNewPageModal, setShowNewPageModal] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   const active = pages.find((p) => p.id === activeId) ?? pages[0];
 
@@ -100,13 +105,21 @@ export default function Dashboard() {
         .catch(() => ({ user: null, pages: [] }));
 
       if (!meRes.user && !adminToken) {
-        window.location.href = `/masuk?redirect=${encodeURIComponent(window.location.pathname)}`;
+        router.push(`/masuk?redirect=${encodeURIComponent(window.location.pathname)}`);
         return;
       }
 
+      if (meRes.user) {
+        setCurrentUser(meRes.user);
+      }
+
       let p: Page[] = meRes.pages ?? [];
-      if (meRes.user?.role === "admin" || (adminToken && p.length === 0)) {
-        p = await fetch("/api/pages").then((r) => r.json()).catch(() => []);
+      // Fallback ke /api/pages hanya jika menggunakan ADMIN_TOKEN tanpa user session
+      if (!meRes.user && adminToken) {
+        const fallback = await fetch("/api/pages").then((r) => r.json()).catch(() => []);
+        if (Array.isArray(fallback) && fallback.length > 0) {
+          p = fallback;
+        }
       }
 
       setPages(p);
@@ -156,6 +169,20 @@ export default function Dashboard() {
         if (window.location.pathname === "/dashboard" && targetPage) {
           updateUrl("pages", targetPage.slug, curRoute.subtab || "studio", false, true);
         }
+      } else {
+        setActiveId("");
+        setProducts([]);
+        setStats({
+          views: 0,
+          clicks: 0,
+          orders: 0,
+          omset: 0,
+          viewsOverTime: [],
+          clicksOverTime: [],
+        });
+        setOrders([]);
+        setSubs(0);
+        setCoupons([]);
       }
     } catch {
       setLoading(false);
@@ -185,6 +212,7 @@ export default function Dashboard() {
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pages, activeId]);
 
   function handleTabChange(nextTab: DashboardTab) {
@@ -422,6 +450,8 @@ export default function Dashboard() {
     else await refresh();
   }
 
+  const isPro = currentUser?.role === "admin" || currentUser?.plan === "pro";
+
   return (
     <div className="min-h-screen bg-background text-foreground antialiased flex flex-col">
       {/* Top Header & Tab Navigation */}
@@ -435,6 +465,8 @@ export default function Dashboard() {
         activePageId={active?.id}
         onSelectPage={handleSelectPage}
         onNewPageClick={() => setShowNewPageModal(true)}
+        currentUser={currentUser}
+        onOpenProfileModal={() => setShowProfileModal(true)}
       />
 
       {/* Main Content Area */}
@@ -447,15 +479,17 @@ export default function Dashboard() {
               pages={pages}
               activeId={active?.id || ""}
               loading={loading}
-              initialShowCarousel={true}
+              showOverview={showOverview}
               onCarouselToggle={handleCarouselToggle}
               onSelectPage={handleSelectPage}
               onNewPageClick={() => setShowNewPageModal(true)}
               onDeletePage={handleDeletePage}
+              isPro={isPro}
+              onUpgradePro={() => setShowProfileModal(true)}
             />
 
             {/* Active Page Bento Studio Workspace */}
-            {active && (
+            {active && !showOverview && (
               <StudioWorkspace
                 page={active}
                 products={products}
@@ -534,6 +568,9 @@ export default function Dashboard() {
               onSaveToken={handleSaveAdminToken}
               activePage={active}
               onUpdateCustomDomain={handleUpdateCustomDomain}
+              currentUser={currentUser}
+              onOpenProfileModal={() => setShowProfileModal(true)}
+              pageCount={pages.length}
             />
           </div>
         )}
@@ -554,6 +591,21 @@ export default function Dashboard() {
         isOpen={showNewPageModal}
         onClose={() => setShowNewPageModal(false)}
         onCreate={handleCreatePage}
+        isPro={isPro}
+        pageCount={pages.length}
+        onUpgradePro={() => setShowProfileModal(true)}
+      />
+
+      {/* MODAL 3: USER PROFILE & SUBSCRIPTION */}
+      <UserProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        currentUser={currentUser}
+        pageCount={pages.length}
+        onProfileUpdated={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          refresh();
+        }}
       />
     </div>
   );

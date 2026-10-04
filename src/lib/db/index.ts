@@ -6,13 +6,74 @@ import * as schema from "./schema";
 import type { DbSeed } from "./seed-data";
 import { defaultSeed } from "./seed-data";
 
-const isProduction = process.env.NODE_ENV === "production";
 const dbUrl = process.env.DATABASE_URL || `file:${path.join(process.cwd(), "data", "openlynk.db")}`;
 const dbAuthToken = process.env.DATABASE_AUTH_TOKEN;
+
+async function resilientFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  let url: string | URL = typeof input === "string" || input instanceof URL ? input : "";
+  let method = init?.method;
+  let headers = init?.headers;
+  let bodyData: BodyInit | null | undefined = init?.body;
+
+  if (typeof input === "object" && "url" in input) {
+    url = (input as Request).url;
+    method = method || (input as Request).method;
+    headers = headers || (input as Request).headers;
+    if (!bodyData && (input as Request).body) {
+      try {
+        bodyData = await (input as Request).arrayBuffer();
+      } catch {
+        // Fallback
+      }
+    }
+  }
+
+  if (bodyData && typeof (bodyData as ReadableStream<Uint8Array>).getReader === "function") {
+    try {
+      const chunks: Uint8Array[] = [];
+      const reader = (bodyData as ReadableStream<Uint8Array>).getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) chunks.push(value);
+      }
+      const totalLen = chunks.reduce((acc, c) => acc + c.length, 0);
+      const combined = new Uint8Array(totalLen);
+      let offset = 0;
+      for (const c of chunks) {
+        combined.set(c, offset);
+        offset += c.length;
+      }
+      bodyData = combined;
+    } catch {
+      // Abaikan jika tidak bisa
+    }
+  }
+
+  const maxRetries = 3;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fetch(url, {
+        ...init,
+        method: method || "GET",
+        headers,
+        body: bodyData,
+      });
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
 
 export const client = createClient({
   url: dbUrl,
   authToken: dbAuthToken,
+  fetch: resilientFetch,
 });
 
 export const db = drizzle(client, { schema });
@@ -43,6 +104,7 @@ export async function ensureDbInitialized(): Promise<void> {
           name TEXT NOT NULL,
           avatar TEXT,
           role TEXT NOT NULL DEFAULT 'creator',
+          plan TEXT NOT NULL DEFAULT 'free',
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );`,
@@ -182,6 +244,7 @@ export async function ensureDbInitialized(): Promise<void> {
       await client.execute("ALTER TABLE orders ADD COLUMN discount_idr INTEGER DEFAULT 0;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN download_count INTEGER NOT NULL DEFAULT 0;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN last_downloaded_at TEXT;").catch(() => {});
+      await client.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free';").catch(() => {});
 
       // Inisialisasi Demo User default (demo@openlynk.id / password123) jika belum ada
       const userCountRes = await client.execute("SELECT COUNT(*) as c FROM users;");
@@ -191,12 +254,10 @@ export async function ensureDbInitialized(): Promise<void> {
         const defaultHash = "1e9bc464e9ff13a9af311b7b31a3e8ee:3e62c47e6cd079045ea60970f0653b3149bf6742195295034b9c328df6c3dc90477a51973557d2566eeef9a316d7fc794da8332e4d4d96c6146f2a6afd5815e8";
         const now = new Date().toISOString();
         await client.execute({
-          sql: `INSERT OR IGNORE INTO users (id, email, password_hash, name, avatar, role, created_at, updated_at)
-                VALUES ('usr_demo', 'demo@openlynk.id', ?, 'Kreator Demo', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80', 'creator', ?, ?);`,
+          sql: `INSERT OR IGNORE INTO users (id, email, password_hash, name, avatar, role, plan, created_at, updated_at)
+                VALUES ('usr_demo', 'demo@openlynk.id', ?, 'Kreator Demo', 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80', 'creator', 'free', ?, ?);`,
           args: [defaultHash, now, now],
         });
-        // Hubungkan halaman demo yang belum memiliki pemilik ke usr_demo
-        await client.execute("UPDATE pages SET user_id = 'usr_demo' WHERE user_id IS NULL;");
       }
 
       // Cek apakah tabel pages kosong, jika ya: migrasikan dari db.json atau masukkan seed
@@ -205,9 +266,13 @@ export async function ensureDbInitialized(): Promise<void> {
 
       if (count === 0) {
         await migrateFromDbJsonOrSeed();
-      } else {
-        // Cek jika kupon masih kosong, tambahkan demo kupon
-        const couponCountRes = await client.execute("SELECT COUNT(*) as c FROM coupons;");
+      }
+
+      // Selalu pastikan halaman tanpa pemilik terhubung ke usr_demo
+      await client.execute("UPDATE pages SET user_id = 'usr_demo' WHERE user_id IS NULL;");
+
+      // Cek jika kupon masih kosong, tambahkan demo kupon
+      const couponCountRes = await client.execute("SELECT COUNT(*) as c FROM coupons;");
         const couponCount = Number(couponCountRes.rows[0]?.c ?? 0);
         if (couponCount === 0) {
           for (const c of defaultSeed.coupons) {
@@ -230,7 +295,6 @@ export async function ensureDbInitialized(): Promise<void> {
             });
           }
         }
-      }
     })();
   }
   return initPromise;
@@ -276,10 +340,11 @@ async function migrateFromDbJsonOrSeed() {
   // Insert Pages
   for (const p of dataToInsert.pages) {
     await client.execute({
-      sql: `INSERT OR REPLACE INTO pages (id, slug, name, bio, image, banner_image, socials, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT OR REPLACE INTO pages (id, user_id, slug, name, bio, image, banner_image, socials, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         p.id,
+        p.userId ?? "usr_demo",
         p.slug,
         p.name,
         p.bio ?? "",
@@ -381,7 +446,13 @@ async function migrateFromDbJsonOrSeed() {
 
   // Insert Subscribers
   for (const s of dataToInsert.subscribers) {
-    const at = (s as any).at || (s as any).createdAt || new Date().toISOString();
+    const subRecord = s as Record<string, unknown>;
+    const at =
+      typeof subRecord.at === "string"
+        ? subRecord.at
+        : typeof subRecord.createdAt === "string"
+        ? subRecord.createdAt
+        : new Date().toISOString();
     await client.execute({
       sql: `INSERT INTO subscribers (page_id, email, at) VALUES (?, ?, ?)`,
       args: [s.pageId, s.email, at],

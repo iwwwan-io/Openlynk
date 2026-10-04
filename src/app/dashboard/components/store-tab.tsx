@@ -10,10 +10,7 @@ import {
   XCircle,
   Search,
   ShoppingBag,
-  DollarSign,
   Package,
-  Layers,
-  ArrowUpRight,
 } from "lucide-react";
 import { PageProductsManager } from "./page-products-manager";
 

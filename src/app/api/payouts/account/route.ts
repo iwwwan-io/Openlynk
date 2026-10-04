@@ -25,6 +25,13 @@ export async function POST(req: Request) {
     );
   }
 
+  if (!SUPPORTED_BANKS.includes(bankName)) {
+    return NextResponse.json(
+      { error: "Bank atau e-wallet tidak didukung. Pilih salah satu bank/e-wallet yang tersedia." },
+      { status: 400 }
+    );
+  }
+
   if (accountNumber.length < 5 || accountNumber.length > 30) {
     return NextResponse.json(
       { error: "Nomor rekening / nomor e-wallet tidak valid." },

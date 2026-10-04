@@ -10,11 +10,7 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
-  DollarSign,
-  Building2,
-  Plus,
   RefreshCw,
-  Info,
 } from "lucide-react";
 import {
   formatIDR,

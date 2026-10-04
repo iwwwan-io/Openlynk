@@ -42,8 +42,8 @@ export async function POST(req: Request) {
     const now = new Date().toISOString();
 
     await client.execute({
-      sql: `INSERT INTO users (id, email, password_hash, name, role, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 'creator', ?, ?);`,
+      sql: `INSERT INTO users (id, email, password_hash, name, role, plan, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'creator', 'free', ?, ?);`,
       args: [userId, email, passwordHash, name.slice(0, 100), now, now],
     });
 
@@ -52,6 +52,7 @@ export async function POST(req: Request) {
       email,
       name,
       role: "creator",
+      plan: "free",
       createdAt: now,
       updatedAt: now,
     };

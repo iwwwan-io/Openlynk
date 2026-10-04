@@ -12,7 +12,7 @@ export function adminRequired(): boolean {
 
 export function isAdmin(req?: Request): boolean {
   const token = process.env.ADMIN_TOKEN;
-  if (!token) return true;
+  if (!token || token.trim() === "") return false;
   if (!req) return false;
   const h =
     req.headers.get("authorization") ?? req.headers.get("x-admin-token") ?? "";
@@ -60,6 +60,7 @@ export async function getUserByEmail(email: string): Promise<(User & { passwordH
     name: String(r.name),
     avatar: r.avatar ? String(r.avatar) : undefined,
     role: (r.role as "creator" | "admin") || "creator",
+    plan: (r.plan as "free" | "pro") || "free",
     passwordHash: String(r.password_hash),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
@@ -80,9 +81,38 @@ export async function getUserById(id: string): Promise<User | null> {
     name: String(r.name),
     avatar: r.avatar ? String(r.avatar) : undefined,
     role: (r.role as "creator" | "admin") || "creator",
+    plan: (r.plan as "free" | "pro") || "free",
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: { name?: string; avatar?: string; plan?: "free" | "pro" }
+): Promise<User | null> {
+  await ensureDbInitialized();
+  const existing = await getUserById(userId);
+  if (!existing) return null;
+
+  const newName = data.name !== undefined ? data.name.trim().slice(0, 100) : existing.name;
+  const newAvatar =
+    data.avatar !== undefined ? (data.avatar.trim().slice(0, 500) || null) : (existing.avatar ?? null);
+  const newPlan =
+    data.plan !== undefined && ["free", "pro"].includes(data.plan) ? data.plan : existing.plan || "free";
+  const now = new Date().toISOString();
+
+  await client.execute({
+    sql: "UPDATE users SET name = ?, avatar = ?, plan = ?, updated_at = ? WHERE id = ?;",
+    args: [newName, newAvatar, newPlan, now, userId],
+  });
+
+  return getUserById(userId);
+}
+
+export function isUserPro(user: User | null): boolean {
+  if (!user) return false;
+  return user.role === "admin" || user.plan === "pro";
 }
 
 // 4. Session Management
@@ -121,7 +151,7 @@ export async function validateSessionToken(token: string): Promise<User | null> 
   await ensureDbInitialized();
 
   const res = await client.execute({
-    sql: `SELECT s.id as session_id, s.expires_at, u.id, u.email, u.name, u.avatar, u.role, u.created_at, u.updated_at
+    sql: `SELECT s.id as session_id, s.expires_at, u.id, u.email, u.name, u.avatar, u.role, u.plan, u.created_at, u.updated_at
           FROM sessions s
           JOIN users u ON s.user_id = u.id
           WHERE s.token = ? LIMIT 1;`,
@@ -143,6 +173,7 @@ export async function validateSessionToken(token: string): Promise<User | null> 
     name: String(r.name),
     avatar: r.avatar ? String(r.avatar) : undefined,
     role: (r.role as "creator" | "admin") || "creator",
+    plan: (r.plan as "free" | "pro") || "free",
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };

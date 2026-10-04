@@ -13,8 +13,6 @@ import {
   Loader2,
   FileCheck,
   ImageIcon,
-  Sparkles,
-  Layers,
   ExternalLink,
 } from "lucide-react";
 
@@ -81,6 +79,7 @@ function EditProductModalForm({
     product.stock !== null && product.stock !== undefined ? product.stock : ""
   );
   const [isUnlimited, setIsUnlimited] = useState(product.stock === null || product.stock === undefined);
+  const [kind] = useState<"digital" | "fisik">(product.kind || "digital");
   const [imageUrl, setImageUrl] = useState(product.imageUrl || "");
   const [fileUrl, setFileUrl] = useState(product.fileUrl || "");
   const [isActive, setIsActive] = useState(product.isActive ?? true);

@@ -37,7 +37,7 @@ export async function getDb(): Promise<Db> {
       client.execute("SELECT * FROM subscribers;"),
     ]);
 
-  const pages: Page[] = pagesRows.rows.map((r: any) => ({
+  const pages: Page[] = pagesRows.rows.map((r: Record<string, unknown>) => ({
     id: String(r.id),
     userId: r.user_id ? String(r.user_id) : undefined,
     slug: String(r.slug),
@@ -51,16 +51,16 @@ export async function getDb(): Promise<Db> {
         : r.socials
       : undefined,
     customDomain: r.custom_domain ? String(r.custom_domain) : undefined,
-    theme: (r.theme ?? "default") as any,
+    theme: ((r.theme as ThemeName) ?? "default"),
     accentColor: String(r.accent_color ?? "#18181b"),
     darkMode: Boolean(r.dark_mode),
     isPublic: Boolean(r.is_public),
-    bento: typeof r.bento === "string" ? JSON.parse(r.bento) : (r.bento ?? []),
+    bento: typeof r.bento === "string" ? JSON.parse(r.bento) : ((r.bento as BentoItem[]) ?? []),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   }));
 
-  const products: Product[] = productsRows.rows.map((r: any) => ({
+  const products: Product[] = productsRows.rows.map((r: Record<string, unknown>) => ({
     id: String(r.id),
     pageId: String(r.page_id),
     name: String(r.name),
@@ -74,7 +74,7 @@ export async function getDb(): Promise<Db> {
     createdAt: String(r.created_at),
   }));
 
-  const orders: Order[] = ordersRows.rows.map((r: any) => ({
+  const orders: Order[] = ordersRows.rows.map((r: Record<string, unknown>) => ({
     id: String(r.id),
     productId: String(r.product_id),
     pageId: String(r.page_id),
@@ -93,7 +93,7 @@ export async function getDb(): Promise<Db> {
     lastDownloadedAt: r.last_downloaded_at ? String(r.last_downloaded_at) : undefined,
   }));
 
-  const coupons: Coupon[] = couponsRows.rows.map((r: any) => ({
+  const coupons: Coupon[] = couponsRows.rows.map((r: Record<string, unknown>) => ({
     id: String(r.id),
     pageId: String(r.page_id),
     code: String(r.code),
@@ -107,18 +107,18 @@ export async function getDb(): Promise<Db> {
     createdAt: String(r.created_at),
   }));
 
-  const views: View[] = viewsRows.rows.map((r: any) => ({
+  const views: View[] = viewsRows.rows.map((r: Record<string, unknown>) => ({
     pageId: String(r.page_id),
     at: String(r.at),
   }));
 
-  const clicks: Click[] = clicksRows.rows.map((r: any) => ({
+  const clicks: Click[] = clicksRows.rows.map((r: Record<string, unknown>) => ({
     pageId: String(r.page_id),
     href: String(r.href),
     at: String(r.at),
   }));
 
-  const subscribers: Subscriber[] = subsRows.rows.map((r: any) => ({
+  const subscribers: Subscriber[] = subsRows.rows.map((r: Record<string, unknown>) => ({
     pageId: String(r.page_id),
     email: String(r.email),
     at: String(r.at),
@@ -139,7 +139,10 @@ export async function saveDb(nextDb: Db): Promise<void> {
   await ensureDbInitialized();
 
   // 1. Sync Pages: Upsert semua page & hapus page yang di-delete
-  const currentPagesRes = await client.execute("SELECT id FROM pages;");
+  const currentPagesRes = await client.execute("SELECT id, user_id FROM pages;");
+  const existingUserIdMap = new Map(
+    currentPagesRes.rows.map((r) => [String(r.id), r.user_id ? String(r.user_id) : null])
+  );
   const currentIds = new Set(currentPagesRes.rows.map((r) => String(r.id)));
   const nextIds = new Set(nextDb.pages.map((p) => p.id));
 
@@ -150,12 +153,14 @@ export async function saveDb(nextDb: Db): Promise<void> {
   }
 
   for (const p of nextDb.pages) {
+    // Pertahankan userId yang sudah ada di database jika di memori tidak terdefinisi
+    const finalUserId = p.userId ?? existingUserIdMap.get(p.id) ?? "usr_demo";
     await client.execute({
       sql: `INSERT OR REPLACE INTO pages (id, user_id, slug, custom_domain, name, bio, image, banner_image, socials, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       args: [
         p.id,
-        p.userId ?? null,
+        finalUserId,
         p.slug,
         p.customDomain ?? null,
         p.name,
@@ -289,7 +294,13 @@ export async function saveDb(nextDb: Db): Promise<void> {
   if (nextDb.subscribers.length > currentSubCount) {
     const newSubs = nextDb.subscribers.slice(currentSubCount);
     for (const s of newSubs) {
-      const at = (s as any).at || (s as any).createdAt || new Date().toISOString();
+      const subRecord = s as Record<string, unknown>;
+      const at =
+        typeof subRecord.at === "string"
+          ? subRecord.at
+          : typeof subRecord.createdAt === "string"
+          ? subRecord.createdAt
+          : new Date().toISOString();
       await client.execute({
         sql: "INSERT INTO subscribers (page_id, email, at) VALUES (?, ?, ?);",
         args: [s.pageId, s.email, at],
@@ -352,7 +363,7 @@ export async function validateAndApplyCoupon(
     return { valid: false, message: `Kupon "${code}" tidak ditemukan`, discountIdr: 0, finalSubtotal: subtotalIdr };
   }
 
-  const row: any = res.rows[0];
+  const row = res.rows[0] as Record<string, unknown>;
   const coupon: Coupon = {
     id: String(row.id),
     pageId: String(row.page_id),

@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       name: userWithPw.name,
       avatar: userWithPw.avatar,
       role: userWithPw.role,
+      plan: userWithPw.plan || "free",
       createdAt: userWithPw.createdAt,
       updatedAt: userWithPw.updatedAt,
     };
