@@ -17,6 +17,7 @@
   - [3. Penyimpanan Aset & File via ImageKit](#3-penyimpanan-aset--file-via-imagekit)
   - [4. Notifikasi WhatsApp & Email Pengiriman](#4-notifikasi-whatsapp--email-pengiriman)
   - [5. Portal Akses Pembeli (Buyer Portal)](#5-portal-akses-pembeli-buyer-portal)
+- [🔄 SOP Alur Kerja Pengembangan Aman](#-sop-alur-kerja-pengembangan-aman)
 - [Pengujian Otomatis (Unit & Integration Tests)](#-pengujian-otomatis-unit--integration-tests)
 - [Skrip NPM / Bun](#-skrip-npm--bun)
 - [Lisensi](#-lisensi)
@@ -205,12 +206,70 @@ OpenLynk didesain murni untuk perdagangan produk non-fisik:
 
 ---
 
+## 🔄 SOP Alur Kerja Pengembangan Aman
+
+Untuk menjaga agar halaman yang sudah dipublikasikan (*live production*) tidak pernah rusak atau mengalami *downtime*, ikuti Standar Operasional Prosedur (SOP) pengembangan berikut:
+
+### 1. Aturan Emas: Jangan Pernah Push Langsung ke `main`
+Seluruh penambahan fitur, perbaikan bug, atau perubahan tampilan **wajib** dikerjakan melalui cabang (*branch*) terpisah dan digabungkan via **Pull Request (PR)**.
+
+### 2. Alur 7 Langkah Siklus Pengembangan
+
+1. **Sinkronkan Branch `main` Lokal Terkini**:
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+2. **Buat Cabang Baru untuk Fitur / Perbaikan**:
+   ```bash
+   git checkout -b feature/nama-fitur-baru
+   # atau: git checkout -b fix/perbaikan-bug
+   ```
+3. **Kembangkan & Uji Coba di Lokal**:
+   ```bash
+   bun run dev
+   ```
+   Buka `http://localhost:3000` di browser dan lakukan modifikasi kode.
+4. **Jalankan "Triple Check" Mandiri Sebelum Push**:
+   ```bash
+   bun run lint                     # 1. Cek kerapian & sintaks kode
+   bun test --env-file=.env.test   # 2. Validasi seluruh tes otomatis lolos
+   bun run build                    # 3. Uji kompilasi produksi Next.js 16
+   ```
+5. **Commit & Push ke GitHub**:
+   ```bash
+   git add .
+   git commit -m "feat: deskripsi perubahan fitur"
+   git push -u origin feature/nama-fitur-baru
+   ```
+6. **Buka Pull Request (PR) di GitHub**:
+   - Di repositori GitHub, klik tombol **Compare & pull request**.
+   - **GitHub Actions CI** akan otomatis menguji linting, tes, dan build (wajib centang hijau).
+   - **Vercel** akan otomatis membuatkan **Preview Deployment URL** (misal: `https://openlynk-git-feature-xxx.vercel.app`) untuk uji coba nyata sebelum digabungkan.
+7. **Merge ke Produksi**:
+   - Setelah seluruh status check hijau dan hasil preview sesuai, klik **Merge pull request** → **Confirm merge**.
+   - Vercel akan otomatis mendeploy versi baru ke produksi secara live dalam ~30 detik dengan *zero downtime*.
+
+### 3. Migrasi Skema Basis Data
+Jika Anda memodifikasi skema tabel di `src/lib/db/schema.ts`, sinkronkan perubahan skema ke database Turso cloud dengan perintah:
+```bash
+bun run db:push
+```
+
+### 4. Jaring Pengaman Terakhir: Vercel Instant Rollback
+Jika terjadi kesalahan tak terduga yang lolos ke produksi:
+1. Buka Vercel Dashboard → Tab **Deployments**.
+2. Pilih deployment versi sebelumnya yang stabil.
+3. Klik menu tiga titik `...` lalu pilih **Instant Rollback**. Website akan pulih ke versi stabil dalam waktu < 5 detik.
+
+---
+
 ## 🧪 Pengujian Otomatis (Unit & Integration Tests)
 
 Seluruh logika inti, kalkulasi diskon, proteksi berkas, dan multi-tenant telah divalidasi dengan rangkaian pengujian otomatis.
 
 ```bash
-bun test
+bun test --env-file=.env.test
 ```
 
 ### Ringkasan Rangkaian Tes:
