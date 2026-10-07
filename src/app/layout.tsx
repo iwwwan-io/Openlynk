@@ -30,12 +30,19 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
+const rawAppUrl =
+  process.env.NEXT_PUBLIC_URL ||
+  (process.env.NEXT_PUBLIC_APP_DOMAIN
+    ? `https://${process.env.NEXT_PUBLIC_APP_DOMAIN}`
+    : "http://localhost:3000");
+
+const cleanBaseUrl =
+  rawAppUrl.startsWith("http://") || rawAppUrl.startsWith("https://")
+    ? rawAppUrl
+    : `https://${rawAppUrl}`;
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_DOMAIN
-      ? `https://${process.env.NEXT_PUBLIC_APP_DOMAIN}`
-      : "http://localhost:3000"
-  ),
+  metadataBase: new URL(cleanBaseUrl),
   title: {
     default: "OpenLynk — Platform Link-in-Bio & Toko Produk Digital",
     template: "%s | OpenLynk",
@@ -62,6 +69,14 @@ export const metadata: Metadata = {
     title: "OpenLynk — Platform Link-in-Bio & Toko Produk Digital",
     description:
       "Platform all-in-one untuk kreator konten Indonesia: jual produk digital, terima donasi sawer QRIS, dan bagikan tautan bento.",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "OpenLynk — Platform Link-in-Bio & Toko Produk Digital",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
@@ -69,6 +84,7 @@ export const metadata: Metadata = {
     description:
       "Platform all-in-one untuk kreator konten Indonesia: jual produk digital, terima donasi sawer QRIS, dan bagikan tautan bento.",
     creator: "@openlynkid",
+    images: ["/twitter-image"],
   },
   robots: {
     index: true,

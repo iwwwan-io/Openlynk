@@ -1,0 +1,43 @@
+name: CI & Production Safety Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Verify Lint, Tests & Production Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Run ESLint
+        run: bun run lint
+
+      - name: Run Automated Test Suite
+        run: bun test --env-file=.env.test
+
+      - name: Run Production Build Test
+        run: bun run build
+        env:
+          NEXT_PUBLIC_URL: https://openlynk-ci.vercel.app
+          BETTER_AUTH_SECRET: ci-secret-key-32-chars-mock-for-build
+          ADMIN_TOKEN: ci-admin-token-32-chars-mock-for-build
+          DATABASE_URL: file:./data/test.db
+          DATABASE_AUTH_TOKEN: ""
+          MIDTRANS_IS_PRODUCTION: false
+          IMAGEKIT_PUBLIC_KEY: public_mock_ci_key
+          IMAGEKIT_PRIVATE_KEY: private_mock_ci_key
+          IMAGEKIT_URL_ENDPOINT: https://ik.imagekit.io/mock

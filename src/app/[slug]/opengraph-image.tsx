@@ -50,6 +50,22 @@ export default async function Image({
   const bentoCount = page.bento ? page.bento.length : 0;
   const initial = (page.name || slug).charAt(0).toUpperCase();
 
+  const hasValidImage = Boolean(
+    page.image &&
+      (page.image.startsWith("http://") || page.image.startsWith("https://"))
+  );
+
+  const displayHost =
+    page.customDomain ||
+    process.env.NEXT_PUBLIC_APP_DOMAIN ||
+    (process.env.NEXT_PUBLIC_URL
+      ? new URL(
+          process.env.NEXT_PUBLIC_URL.startsWith("http")
+            ? process.env.NEXT_PUBLIC_URL
+            : `https://${process.env.NEXT_PUBLIC_URL}`
+        ).host
+      : "openlynk.id");
+
   return new ImageResponse(
     (
       <div
@@ -86,7 +102,6 @@ export default async function Image({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            zIndex: 10,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -134,12 +149,11 @@ export default async function Image({
             display: "flex",
             alignItems: "center",
             gap: "36px",
-            zIndex: 10,
           }}
         >
-          {page.image ? (
+          {hasValidImage ? (
             <img
-              src={page.image}
+              src={page.image!}
               alt={page.name}
               style={{
                 width: "150px",
@@ -221,7 +235,6 @@ export default async function Image({
             justifyContent: "space-between",
             borderTop: "1px solid rgba(255,255,255,0.1)",
             paddingTop: "24px",
-            zIndex: 10,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
@@ -275,13 +288,17 @@ export default async function Image({
               fontFamily: "monospace",
             }}
           >
-            openlynk.id/{page.slug}
+            {displayHost}/{page.slug}
           </div>
         </div>
       </div>
     ),
     {
       ...size,
+      headers: {
+        "Cache-Control":
+          "public, immutable, no-transform, max-age=3600, s-maxage=86400, stale-while-revalidate=86400",
+      },
     }
   );
 }
