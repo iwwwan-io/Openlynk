@@ -41,6 +41,18 @@ export async function POST(req: Request) {
   if (!rateLimit(`order:${clientKey(req)}`, 20)) {
     return NextResponse.json({ error: "terlalu banyak, coba lagi" }, { status: 429 });
   }
+  // Helper P0: tentukan tarif fee dari plan pemilik page (pro=3%, free=5%)
+  async function planForPage(pageId: string): Promise<string> {
+    try {
+      const ownerRes = await client.execute({
+        sql: "SELECT u.plan, u.role FROM pages p LEFT JOIN users u ON p.user_id = u.id WHERE p.id = ? LIMIT 1;",
+        args: [pageId],
+      });
+      const row = ownerRes.rows[0] as Record<string, unknown> | undefined;
+      if (row?.role === "admin" || row?.plan === "pro") return "pro";
+    } catch {}
+    return "free";
+  }
   const body = (await req.json()) as {
     productId?: string;
     pageId?: string;
@@ -66,11 +78,12 @@ export async function POST(req: Request) {
     const donorName = (body.buyerName?.trim() || "Kawan Baik").slice(0, 80);
     const donorContact = (body.buyerContact?.trim() || "donatur@openlynk.id").slice(0, 80);
     const message = (body.message?.trim() || "Semangat terus berkarya! ☕").slice(0, 200);
+    const plan = await planForPage(pageId);
 
     const orderId = uid("sawer");
     const snap = await createSnapToken({
       orderId,
-      grossAmount: amount + fee(amount),
+      grossAmount: amount + fee(amount, plan),
       customerName: donorName,
       customerContact: donorContact,
     });
@@ -86,7 +99,7 @@ export async function POST(req: Request) {
       buyerContact: donorContact,
       qty: Math.max(Math.floor(body.qty ?? 1), 1),
       totalIdr: amount,
-      feeIdr: fee(amount),
+      feeIdr: fee(amount, plan),
       status: "pending" as const,
       snapToken: snap.token,
       createdAt: new Date().toISOString(),
@@ -127,10 +140,11 @@ export async function POST(req: Request) {
   }
 
   const total = Math.max(rawSubtotal - discountIdr, 0);
+  const plan = await planForPage(product.pageId);
   const orderId = uid("order");
   const snap = await createSnapToken({
     orderId,
-    grossAmount: total + fee(total),
+    grossAmount: total + fee(total, plan),
     customerName: body.buyerName,
     customerContact: body.buyerContact,
   });
@@ -142,7 +156,7 @@ export async function POST(req: Request) {
     buyerContact: body.buyerContact.slice(0, 80),
     qty,
     totalIdr: total,
-    feeIdr: fee(total),
+    feeIdr: fee(total, plan),
     status: "pending" as const,
     couponCode: appliedCouponCode,
     discountIdr,

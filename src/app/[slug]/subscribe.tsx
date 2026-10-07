@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 export function Subscribe({ pageId, dark }: { pageId: string; dark?: boolean }) {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ export function Subscribe({ pageId, dark }: { pageId: string; dark?: boolean }) 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pageId, email }),
     });
-    if (!res.ok) alert((await res.json()).error ?? "gagal");
+    if (!res.ok) toast.error((await res.json()).error ?? "gagal");
     else {
       setDone(true);
       setEmail("");

@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import { client, ensureDbInitialized } from "@/lib/db";
 import { hashPassword, createSession, getUserByEmail, SESSION_COOKIE_NAME } from "@/lib/auth";
+import { clientKey, rateLimit } from "@/lib/ratelimit";
 import { uid, type User } from "@/lib/types";
 import { validSlug } from "@/lib/validate";
 
 export async function POST(req: Request) {
   try {
+    // Rate limit pendaftaran: maks 10 per menit per IP
+    const ipKey = `auth_register:${clientKey(req)}`;
+    if (!rateLimit(ipKey, 10, 60_000)) {
+      return NextResponse.json(
+        { error: "Terlalu banyak permintaan pendaftaran. Silakan tunggu 1 menit." },
+        { status: 429 }
+      );
+    }
+
     const body = (await req.json()) as {
       email?: string;
       password?: string;

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import {
-  X,
   User as UserIcon,
   Crown,
   CheckCircle2,
@@ -14,6 +13,14 @@ import {
   Layers,
 } from "lucide-react";
 import type { User } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -37,7 +44,7 @@ export function UserProfileModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  if (!isOpen || !currentUser) return null;
+  if (!currentUser) return null;
 
   const isPro = currentUser.role === "admin" || currentUser.plan === "pro";
 
@@ -73,6 +80,13 @@ export function UserProfileModal({
   }
 
   async function handleTogglePlan(targetPlan: "free" | "pro") {
+    // P0: Upgrade Pro wajib via pembayaran/admin, bukan toggle gratis.
+    if (targetPlan === "pro") {
+      setError(
+        "Upgrade Pro memerlukan pembayaran terverifikasi. Hubungi admin via WhatsApp / selesaikan pembayaran Pro, lalu admin akan mengaktifkan paket Anda."
+      );
+      return;
+    }
     setError("");
     setSuccess("");
     setPlanLoading(true);
@@ -92,11 +106,7 @@ export function UserProfileModal({
       }
 
       onProfileUpdated(data.user);
-      setSuccess(
-        targetPlan === "pro"
-          ? "Selamat! Akun Anda berhasil di-upgrade ke OpenLynk PRO 👑"
-          : "Paket berhasil dialihkan ke Free."
-      );
+      setSuccess("Paket berhasil dialihkan ke Free.");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan saat mengubah paket");
@@ -106,40 +116,23 @@ export function UserProfileModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-xs animate-in fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-lg rounded-t-[32px] sm:rounded-3xl border border-border/80 bg-card p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Mobile Grabber */}
-        <div className="mx-auto h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden mb-1" />
-
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg rounded-3xl border-border/80 bg-card p-6 shadow-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b border-border/60 pb-3 text-left">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-foreground text-background">
               <UserIcon className="h-4 w-4" />
             </span>
             <div>
-              <h3 className="font-display text-base font-bold text-foreground">
+              <DialogTitle className="font-display text-base font-bold text-foreground">
                 Profil & Paket Akun
-              </h3>
-              <p className="text-xs text-muted-foreground">
+              </DialogTitle>
+              <DialogDescription className="text-xs text-muted-foreground">
                 Kelola informasi identitas dan status langganan kreator Anda
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Feedback Messages */}
         {error && (
@@ -226,7 +219,7 @@ export function UserProfileModal({
                   ) : (
                     <Zap className="h-3.5 w-3.5 fill-current" />
                   )}
-                  <span>Upgrade ke Pro (Aktifkan)</span>
+                  <span>Hubungi Admin untuk Pro</span>
                 </button>
               </>
             ) : (
@@ -256,18 +249,12 @@ export function UserProfileModal({
         <form onSubmit={handleSaveProfile} className="space-y-4 pt-1">
           {/* Avatar Preview & URL */}
           <div className="flex items-center gap-4">
-            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border bg-muted/60 text-lg font-bold text-foreground">
-              {avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatar}
-                  alt={name || "Avatar"}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span>{(name || currentUser.name || "U").charAt(0).toUpperCase()}</span>
+            <Avatar className="size-14 text-lg font-bold">
+              {avatar && (
+                <AvatarImage src={avatar} alt={name || "Avatar"} className="object-cover" />
               )}
-            </div>
+              <AvatarFallback>{(name || currentUser.name || "U").charAt(0).toUpperCase()}</AvatarFallback>
+            </Avatar>
             <div className="flex-1 space-y-1">
               <label className="text-xs font-semibold text-foreground">
                 URL Foto Profil / Avatar
@@ -341,7 +328,7 @@ export function UserProfileModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

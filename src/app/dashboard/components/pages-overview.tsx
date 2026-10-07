@@ -17,6 +17,7 @@ import {
   Crown,
 } from "lucide-react";
 import { QrModal } from "../qr-modal";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface PagesOverviewProps {
   pages: Page[];
@@ -267,17 +268,17 @@ export function PagesOverview({
                   </span>
                 )}
 
-                <div
-                  className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full font-display text-lg font-bold text-white shadow-md ring-4 ring-card"
-                  style={{ backgroundColor: p.accentColor || "#18181b" }}
-                >
-                  {p.image ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.image} alt={p.name} className="h-full w-full object-cover" />
-                  ) : (
-                    p.name.charAt(0).toUpperCase()
+                <Avatar className="size-14 font-display text-lg font-bold text-white shadow-md ring-4 ring-card">
+                  {p.image && (
+                    <AvatarImage src={p.image} alt={p.name} className="object-cover" />
                   )}
-                </div>
+                  <AvatarFallback
+                    className="rounded-full text-white"
+                    style={{ backgroundColor: p.accentColor || "#18181b" }}
+                  >
+                    {p.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
               </div>
 
               {/* Card Body */}

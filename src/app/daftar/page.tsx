@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, Suspense } from "react";
-import { GradientButton } from "@/components/ui";
-import { UserPlus, Sparkles, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { useState, Suspense, useEffect } from "react";
+import { GradientButton } from "@/components/primitives";
+import { Label } from "@/components/ui/label";
+import { GoogleButton, OAuthDivider } from "@/components/google-button";
+import { UserPlus, Sparkles, Loader2, ArrowLeft, CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 function DaftarForm() {
   const router = useRouter();
@@ -14,9 +16,32 @@ function DaftarForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [slug, setSlug] = useState(initialSlug);
+  const [showPassword, setShowPassword] = useState(false);  const [slug, setSlug] = useState(initialSlug);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionCheck, setSessionCheck] = useState<"checking" | "guest">("checking");
+
+  // User yang sudah login tidak perlu daftar lagi — arahkan klaim slug / dashboard
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (cancelled) return;
+        if (j?.user) {
+          const s = searchParams.get("slug")?.trim().toLowerCase();
+          router.replace(s ? `/klaim?slug=${encodeURIComponent(s)}` : "/dashboard");
+        } else {
+          setSessionCheck("guest");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSessionCheck("guest");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router, searchParams]);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -70,6 +95,12 @@ function DaftarForm() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-foreground py-12">
+      {sessionCheck === "checking" ? (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Memeriksa sesi...</span>
+        </div>
+      ) : (
       <div className="w-full max-w-md rounded-2xl border border-border/80 bg-card p-8 shadow-xl">
         <Link
           href="/"
@@ -106,9 +137,9 @@ function DaftarForm() {
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold mb-1.5" htmlFor="name">
+            <Label htmlFor="name" className="mb-1.5 block text-xs font-semibold">
               Nama Lengkap / Nama Kreator
-            </label>
+            </Label>
             <input
               id="name"
               type="text"
@@ -121,9 +152,9 @@ function DaftarForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold mb-1.5" htmlFor="email">
+            <Label htmlFor="email" className="mb-1.5 block text-xs font-semibold">
               Alamat Email
-            </label>
+            </Label>
             <input
               id="email"
               type="email"
@@ -136,19 +167,29 @@ function DaftarForm() {
           </div>
 
           <div>
-            <label className="block text-xs font-semibold mb-1.5" htmlFor="password">
+            <Label htmlFor="password" className="mb-1.5 block text-xs font-semibold">
               Password (min. 6 karakter)
-            </label>
-            <input
-              id="password"
-              type="password"
-              required
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
+            </Label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 pr-11 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                className="absolute right-2 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-foreground"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
 
           {!initialSlug && (
@@ -187,6 +228,14 @@ function DaftarForm() {
           </div>
         </form>
 
+        <div className="space-y-3">
+          <OAuthDivider />
+          <GoogleButton
+            href={`/api/auth/google${slug.trim() ? `?slug=${encodeURIComponent(slug.trim().toLowerCase())}` : ""}`}
+            label="Daftar dengan Google"
+          />
+        </div>
+
         <div className="mt-6 text-center text-xs text-muted-foreground">
           Sudah punya akun?{" "}
           <Link href="/masuk" className="font-semibold text-primary underline underline-offset-4">
@@ -194,6 +243,7 @@ function DaftarForm() {
           </Link>
         </div>
       </div>
+      )}
     </div>
   );
 }

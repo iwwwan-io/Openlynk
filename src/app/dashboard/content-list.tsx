@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { GithubIcon, SpotifyIcon, renderSocialIcon } from "@/components/social-icons";
 import { EditCardModal } from "./edit-card-modal";
+import { ConfirmDialog } from "@/components/confirm";
 
 function getItemTitle(b: BentoItem): string {
   if (b.type === "header") return b.title || "Grup Header";
@@ -73,6 +74,7 @@ export function ContentList({
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<BentoItem | null>(null);
+  const [deleting, setDeleting] = useState<{ id: string; title: string } | null>(null);
 
   if (bento.length === 0) {
     return (
@@ -220,11 +222,7 @@ export function ContentList({
                 {/* Delete button */}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (confirm(`Hapus kartu "${title}"?`)) {
-                      onRemove(b.id);
-                    }
-                  }}
+                  onClick={() => setDeleting({ id: b.id, title })}
                   className="flex h-7 w-7 items-center justify-center rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-950 dark:text-red-400 dark:hover:bg-red-950/50 transition-colors"
                   title="Hapus kartu"
                 >
@@ -245,6 +243,18 @@ export function ContentList({
           if (onEdit) await onEdit(id, data);
         }}
         onRemove={onRemove}
+      />
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(v) => !v && setDeleting(null)}
+        title="Hapus kartu?"
+        description={deleting ? `Kartu "${deleting.title}" akan dihapus dari kanvas.` : undefined}
+        confirmLabel="Ya, hapus"
+        danger
+        onConfirm={() => {
+          if (deleting) void onRemove(deleting.id);
+        }}
       />
     </div>
   );

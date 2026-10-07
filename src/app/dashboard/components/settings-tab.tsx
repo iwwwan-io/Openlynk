@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { KeyRound, ShieldCheck, Check, Globe, AlertCircle, Trash2, ArrowUpRight, Copy, User as UserIcon, Crown } from "lucide-react";
+import { Check, Globe, AlertCircle, Trash2, ArrowUpRight, Copy, User as UserIcon, Crown } from "lucide-react";
+import { ConfirmDialog } from "@/components/confirm";
 import type { Page, User } from "@/lib/types";
 
 interface SettingsTabProps {
@@ -15,31 +16,19 @@ interface SettingsTabProps {
 }
 
 export function SettingsTab({
-  initialToken,
-  onSaveToken,
   activePage,
   onUpdateCustomDomain,
   currentUser,
   onOpenProfileModal,
   pageCount = 0,
 }: SettingsTabProps) {
-  // ADMIN_TOKEN state
-  const [token, setToken] = useState(initialToken);
-  const [tokenSaved, setTokenSaved] = useState(false);
-
   // Custom Domain state
   const [domainInput, setDomainInput] = useState(activePage?.customDomain || "");
   const [isSavingDomain, setIsSavingDomain] = useState(false);
   const [domainError, setDomainError] = useState("");
   const [domainSuccess, setDomainSuccess] = useState(false);
   const [copiedRecord, setCopiedRecord] = useState<string | null>(null);
-
-  function handleSaveToken(e: React.FormEvent) {
-    e.preventDefault();
-    onSaveToken(token.trim());
-    setTokenSaved(true);
-    setTimeout(() => setTokenSaved(false), 2000);
-  }
+  const [confirmRemoveDomain, setConfirmRemoveDomain] = useState(false);
 
   async function handleSaveDomain(e: React.FormEvent) {
     e.preventDefault();
@@ -63,7 +52,6 @@ export function SettingsTab({
 
   async function handleRemoveDomain() {
     if (!onUpdateCustomDomain) return;
-    if (!confirm("Yakin ingin menghapus domain kustom untuk profil ini?")) return;
     try {
       setIsSavingDomain(true);
       await onUpdateCustomDomain(null);
@@ -142,7 +130,7 @@ export function SettingsTab({
       )}
 
       {/* SECTION 1: CUSTOM DOMAIN SETTINGS */}
-      <div className="lg:col-span-7 xl:col-span-7 rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
+      <div className="lg:col-span-12 rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
         <div className="flex items-center justify-between border-b border-border/60 pb-4">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-500">
@@ -187,7 +175,7 @@ export function SettingsTab({
                 {activePage.customDomain && (
                   <button
                     type="button"
-                    onClick={handleRemoveDomain}
+                    onClick={() => setConfirmRemoveDomain(true)}
                     disabled={isSavingDomain}
                     className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-rose-600 hover:bg-rose-100 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-400 transition"
                     title="Hapus domain kustom"
@@ -299,65 +287,16 @@ export function SettingsTab({
         )}
       </div>
 
-      {/* SECTION 2: ADMIN TOKEN & SECURITY */}
-      <div className="lg:col-span-5 xl:col-span-5 rounded-3xl border border-border bg-card p-6 shadow-sm space-y-6">
-        <div className="flex items-center gap-3 border-b border-border/60 pb-4">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground">
-            <KeyRound className="h-5 w-5" />
-          </span>
-          <div>
-            <h2 className="font-display text-lg font-bold text-foreground">Kunci Admin & Keamanan</h2>
-            <p className="text-xs text-muted-foreground">
-              Konfigurasi ADMIN_TOKEN untuk autentikasi manipulasi profil & produk
-            </p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSaveToken} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-xs font-semibold text-foreground">
-              ADMIN_TOKEN Rahasia
-            </label>
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              placeholder="Masukkan token admin rahasia..."
-              className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-mono outline-none focus:border-foreground transition"
-            />
-            <p className="mt-1.5 text-[11px] text-muted-foreground leading-relaxed">
-              Token ini disimpan di LocalStorage browser Anda untuk mengesahkan setiap aksi
-              penambahan kartu, pengubahan tema, dan pembaruan produk ke server jika session login tidak aktif.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-border/70 bg-muted/20 p-4 text-xs space-y-1 text-muted-foreground">
-            <div className="flex items-center gap-1.5 font-semibold text-foreground">
-              <ShieldCheck className="h-4 w-4 text-emerald-500" />
-              <span>Multi-User Session & Sandbox Mode</span>
-            </div>
-            <p className="leading-relaxed">
-              Dengan sistem login multi-user OpenLynk, sesi login Anda secara otomatis mengamankan pengelolaan profil dan keuangan. Token admin berfungsi sebagai kunci darurat bagi administrator sistem.
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-6 py-2.5 text-xs font-bold shadow-xs hover:opacity-90 active:scale-95 transition-all"
-            >
-              {tokenSaved ? (
-                <>
-                  <Check className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>Token Tersimpan!</span>
-                </>
-              ) : (
-                <span>Simpan Token</span>
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
+      <ConfirmDialog
+        open={confirmRemoveDomain}
+        onOpenChange={setConfirmRemoveDomain}
+        title="Hapus domain kustom?"
+        description="Pengunjung tidak lagi bisa mengakses halaman via domain ini."
+        confirmLabel="Ya, hapus"
+        danger
+        busy={isSavingDomain}
+        onConfirm={handleRemoveDomain}
+      />
     </div>
   );
 }

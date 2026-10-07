@@ -1,12 +1,20 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import type { Product } from "@/lib/types";
 import { formatIDR } from "@/lib/types";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/confirm";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
+import {
   ShoppingBag,
-  X,
   Upload,
   Trash2,
   Check,
@@ -67,11 +75,7 @@ function EditProductModalForm({
   onSave: EditProductModalProps["onSave"];
   onDelete: EditProductModalProps["onDelete"];
 }) {
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
+  // Dialog shadcn menangani Escape, overlay-klik, dan scroll-lock secara native.
   const [name, setName] = useState(product.name || "");
   const [price, setPrice] = useState<number | "">(product.priceIdr || 0);
   const [desc, setDesc] = useState(product.description || "");
@@ -88,19 +92,8 @@ function EditProductModalForm({
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -179,46 +172,25 @@ function EditProductModalForm({
   const inputCls =
     "w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-base sm:text-sm outline-none focus:border-foreground transition";
 
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-black/65 p-0 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-full sm:max-w-lg max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border border-border bg-card shadow-2xl transition-all animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Mobile Pull Indicator */}
-        <div className="sm:hidden flex justify-center pt-2.5 pb-1 bg-card shrink-0">
-          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-        </div>
-
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg rounded-3xl border-border bg-card shadow-2xl sm:rounded-3xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col">
         {/* Header (Sticky) */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 sm:px-6 py-3.5 sm:py-4 bg-card">
+        <DialogHeader className="border-b border-border/60 px-4 sm:px-6 py-3.5 sm:py-4 text-left shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <span className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 shadow-2xs">
               <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-sm sm:text-base font-bold text-foreground truncate">
+              <DialogTitle className="font-display text-sm sm:text-base font-bold text-foreground truncate">
                 Edit Produk Toko
-              </h3>
-              <p className="text-[11px] text-muted-foreground font-mono truncate">
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-muted-foreground font-mono truncate">
                 ID: {product.id} · Sinkron ke profil
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-            title="Tutup"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Form Body (Scrollable inside modal) */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -291,14 +263,14 @@ function EditProductModalForm({
                 Ketersediaan Stok
               </label>
               <label className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground select-none">
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={isUnlimited}
-                  onChange={(e) => {
-                    setIsUnlimited(e.target.checked);
-                    if (e.target.checked) setStock("");
+                  onCheckedChange={(v) => {
+                    const next = v === true;
+                    setIsUnlimited(next);
+                    if (next) setStock("");
                   }}
-                  className="rounded-md border-border accent-foreground"
+                  aria-label="Stok tanpa batas"
                 />
                 <span>Tanpa Batas (Unlimited)</span>
               </label>
@@ -468,17 +440,11 @@ function EditProductModalForm({
                 {isActive ? "Aktif & tampil di bio pembeli" : "Nonaktif (disembunyikan dari pembeli)"}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setIsActive(!isActive)}
-              className={`rounded-full px-3 py-1 text-xs font-bold transition-all ${
-                isActive
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                  : "bg-muted text-muted-foreground border border-border"
-              }`}
-            >
-              {isActive ? "✓ Aktif Dijual" : "Nonaktif"}
-            </button>
+            <Switch
+              checked={isActive}
+              onCheckedChange={(v) => setIsActive(v === true)}
+              aria-label="Status aktif produk"
+            />
           </div>
 
           </div>
@@ -488,12 +454,7 @@ function EditProductModalForm({
             {onDelete ? (
               <button
                 type="button"
-                onClick={async () => {
-                  if (confirm(`Hapus produk "${name}" beserta kartu produknya dari bento profil?`)) {
-                    await onDelete(product.id, name);
-                    onClose();
-                  }
-                }}
+                onClick={() => setConfirmDelete(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
                 title="Hapus produk ini"
               >
@@ -532,8 +493,26 @@ function EditProductModalForm({
             </div>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Hapus produk?"
+        description={`Produk "${name}" beserta kartu produknya di bento akan dihapus.`}
+        confirmLabel="Ya, hapus"
+        danger
+        busy={removing}
+        onConfirm={async () => {
+          if (!onDelete) return;
+          setRemoving(true);
+          try {
+            await onDelete(product.id, name);
+            onClose();
+          } finally {
+            setRemoving(false);
+          }
+        }}
+      />
+    </Dialog>
   );
 }

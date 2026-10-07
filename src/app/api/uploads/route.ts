@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import path from "node:path";
 import { isAdmin, getSessionUser } from "@/lib/auth";
 import { uploadFile } from "@/lib/storage";
 
@@ -15,6 +16,18 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/zip",
   "application/x-zip-compressed",
   "application/epub+zip",
+]);
+
+const ALLOWED_EXTENSIONS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".svg",
+  ".gif",
+  ".pdf",
+  ".zip",
+  ".epub",
 ]);
 
 export async function POST(req: Request) {
@@ -40,6 +53,14 @@ export async function POST(req: Request) {
   if (file.size > maxSize) {
     const limitMb = Math.round(maxSize / (1024 * 1024));
     return NextResponse.json({ error: `Ukuran file melebihi batas maksimal ${limitMb}MB` }, { status: 400 });
+  }
+
+  const ext = path.extname(file.name).toLowerCase();
+  if (file.name && !ALLOWED_EXTENSIONS.has(ext)) {
+    return NextResponse.json(
+      { error: `Ekstensi file ${ext || "tanpa ekstensi"} tidak didukung demi keamanan.` },
+      { status: 400 }
+    );
   }
 
   if (file.type && !ALLOWED_MIME_TYPES.has(file.type)) {

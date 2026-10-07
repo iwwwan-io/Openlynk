@@ -296,7 +296,7 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
     expect(initialData.user.plan).toBe("free");
     expect(initialData.user.name).toBe("Nama Awal");
 
-    // 3. Update nama & avatar
+    // 3. Update nama & avatar (tanpa plan)
     const patchRes = await mePatch(
       new Request("http://localhost/api/auth/me", {
         method: "PATCH",
@@ -307,7 +307,6 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
         body: JSON.stringify({
           name: "Nama Baru Kreator",
           avatar: "https://example.com/avatar.png",
-          plan: "pro",
         }),
       })
     );
@@ -315,7 +314,20 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
     const patchData = await patchRes.json();
     expect(patchData.user.name).toBe("Nama Baru Kreator");
     expect(patchData.user.avatar).toBe("https://example.com/avatar.png");
-    expect(patchData.user.plan).toBe("pro");
+    expect(patchData.user.plan).toBe("free");
+
+    // 3b. Self-upgrade ke Pro wajib ditolak (harus via pembayaran/admin)
+    const proAttempt = await mePatch(
+      new Request("http://localhost/api/auth/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ plan: "pro" }),
+      })
+    );
+    expect(proAttempt.status).toBe(403);
 
     // 4. Verifikasi kembali via GET /api/auth/me
     const verifyMe = await meGet(
@@ -324,7 +336,7 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
       })
     );
     const verifyData = await verifyMe.json();
-    expect(verifyData.user.plan).toBe("pro");
+    expect(verifyData.user.plan).toBe("free");
     expect(verifyData.user.name).toBe("Nama Baru Kreator");
 
     // Bersihkan
@@ -393,17 +405,11 @@ describe("Auth Routes & Multi-Tenant Endpoint Isolation", () => {
     expect(page2Data.requiresPro).toBe(true);
     expect(page2Data.error).toContain("Pengguna paket Free hanya dapat membuat 1 halaman");
 
-    // 4. Upgrade user ke paket 'pro'
-    await mePatch(
-      new Request("http://localhost/api/auth/me", {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ plan: "pro" }),
-      })
-    );
+    // 4. Upgrade user ke paket 'pro' via admin/DB (simulasi pembayaran terverifikasi)
+    await client.execute({
+      sql: "UPDATE users SET plan = 'pro' WHERE email = ?;",
+      args: [email],
+    });
 
     // 5. Coba buat halaman kedua (Halaman #2) setelah Pro -> SEKARANG HARUS BERHASIL (201)
     const createPage2AfterPro = await pagesPost(

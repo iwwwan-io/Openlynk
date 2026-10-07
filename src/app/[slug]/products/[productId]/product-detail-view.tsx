@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import Link from "next/link";
 import Script from "next/script";
 import {
@@ -210,10 +211,10 @@ export function ProductDetailView({
       window.snap.pay(snapToken, {
         onSuccess: () => setStep("success"),
         onPending: () => setStep("success"),
-        onError: () => alert("Pembayaran belum berhasil diselesaikan."),
+        onError: () => toast.error("Pembayaran belum berhasil diselesaikan."),
       });
     } else {
-      alert("Midtrans Snap belum aktif atau tanpa client key. Silakan gunakan tombol 'Simulasi Bayar Instan (Demo)' di bawah.");
+      toast.error("Midtrans Snap belum aktif atau tanpa client key. Silakan gunakan tombol 'Simulasi Bayar Instan (Demo)' di bawah.");
     }
   }
 
@@ -230,7 +231,7 @@ export function ProductDetailView({
       if (!res.ok) throw new Error(data.error ?? "Gagal simulasi bayar.");
       setStep("success");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal simulasi");
+      toast.error(err instanceof Error ? err.message : "Gagal simulasi");
     } finally {
       setSimulating(false);
     }
@@ -681,7 +682,7 @@ export function ProductDetailView({
                       </div>
                     )}
                     <div className="flex justify-between text-muted-foreground">
-                      <span>Biaya Layanan (5%)</span>
+                      <span>Biaya Layanan (3–5% sesuai paket kreator)</span>
                       <span>{formatIDR(platformFee)}</span>
                     </div>
                     <div className="border-t border-border/60 pt-2 flex justify-between font-bold text-sm text-foreground">

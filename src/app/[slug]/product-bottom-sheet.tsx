@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import Script from "next/script";
 import {
   X,
@@ -209,14 +210,14 @@ export function ProductBottomSheet() {
           setStep("success");
         },
         onError: () => {
-          alert("Pembayaran belum berhasil diselesaikan.");
+          toast.error("Pembayaran belum berhasil diselesaikan.");
         },
         onClose: () => {
           // Tetap di halaman bottom sheet
         },
       });
     } else {
-      alert("Midtrans Snap belum aktif atau tanpa client key. Silakan gunakan tombol 'Simulasi Bayar Instan (Demo)' di bawah.");
+      toast.error("Midtrans Snap belum aktif atau tanpa client key. Silakan gunakan tombol 'Simulasi Bayar Instan (Demo)' di bawah.");
     }
   }
 
@@ -234,7 +235,7 @@ export function ProductBottomSheet() {
       if (!res.ok) throw new Error(data.error ?? "Gagal simulasi bayar.");
       setStep("success");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal simulasi");
+      toast.error(err instanceof Error ? err.message : "Gagal simulasi");
     } finally {
       setSimulating(false);
     }
@@ -245,7 +246,12 @@ export function ProductBottomSheet() {
       {/* Script Midtrans Snap jika ada client key */}
       {process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY && (
         <Script
-          src="https://app.sandbox.midtrans.com/snap/snap.js"
+          src={
+            process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true" ||
+            process.env.NODE_ENV === "production"
+              ? "https://app.midtrans.com/snap/snap.js"
+              : "https://app.sandbox.midtrans.com/snap/snap.js"
+          }
           data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
         />
       )}
@@ -656,32 +662,37 @@ export function ProductBottomSheet() {
                   </span>
                 </button>
 
-                {/* Tombol Simulasi 1 Halaman Tanpa Redirect */}
-                <button
-                  type="button"
-                  onClick={handleSimulatePay}
-                  disabled={simulating}
-                  className="w-full flex items-center justify-between rounded-2xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 p-4 font-bold transition-all active:scale-[0.99] disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                      {simulating ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      ) : (
-                        <Zap className="h-5 w-5" />
-                      )}
+                {/* Tombol Simulasi 1 Halaman Tanpa Redirect (Hanya Mode Dev/Sandbox) */}
+                {!(
+                  process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true" ||
+                  process.env.NODE_ENV === "production"
+                ) && (
+                  <button
+                    type="button"
+                    onClick={handleSimulatePay}
+                    disabled={simulating}
+                    className="w-full flex items-center justify-between rounded-2xl border border-dashed border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 p-4 font-bold transition-all active:scale-[0.99] disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                        {simulating ? (
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                        ) : (
+                          <Zap className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-bold">Simulasi Bayar Instan (Demo)</p>
+                        <p className="text-[11px] font-normal opacity-80">
+                          Langsung lunas tanpa Midtrans client key
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm font-bold">Simulasi Bayar Instan (Demo)</p>
-                      <p className="text-[11px] font-normal opacity-80">
-                        Langsung lunas tanpa Midtrans client key
-                      </p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20">
-                    1-Klik Bayar
-                  </span>
-                </button>
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20">
+                      1-Klik Bayar
+                    </span>
+                  </button>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-1.5 pt-2 text-[11px] text-muted-foreground">

@@ -16,7 +16,6 @@ import {
   Video,
   Timer,
   CreditCard,
-  ChevronDown,
   Globe,
   Layers,
   Play,
@@ -24,7 +23,14 @@ import {
   Tag,
 } from "lucide-react";
 import { NavbarShell, HomeFooter } from "@/components/site";
-import { GradientButton } from "@/components/ui";
+import { GradientButton } from "@/components/primitives";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { formatIDR } from "@/lib/types";
 
 const features = [
@@ -76,7 +82,7 @@ const faqs = [
   {
     question: "Apakah OpenLynk benar-benar bisa digunakan secara gratis?",
     answer:
-      "Ya, 100% gratis! Paket Starter bebas biaya langganan bulanan selamanya tanpa butuh kartu kredit. Anda bisa membuat 2 halaman bento, memasang produk digital tanpa batas, dan langsung menerima pembayaran QRIS.",
+      "Ya, 100% gratis! Paket Starter bebas biaya langganan bulanan selamanya tanpa butuh kartu kredit. Anda bisa membuat 1 halaman bento, memasang produk digital tanpa batas, dan langsung menerima pembayaran QRIS.",
   },
   {
     question: "Bagaimana cara kerja Checkout 1 Halaman tanpa redirect?",
@@ -104,7 +110,6 @@ export default function Home() {
   const router = useRouter();
   const [claimSlug, setClaimSlug] = useState("");
   const [isAnnual, setIsAnnual] = useState(false);
-  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   function handleClaimSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -120,32 +125,54 @@ export default function Home() {
     <div className="min-h-screen w-full bg-background text-foreground flex flex-col selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-zinc-900">
       {/* Navbar */}
       <NavbarShell>
-        <div className="hidden md:flex items-center gap-x-6 text-sm font-medium text-muted-foreground mr-2">
-          <a href="#fitur" className="transition-colors hover:text-foreground">
+        <div className="hidden items-center gap-x-1 text-sm font-medium text-muted-foreground md:flex">
+          <a
+            href="#fitur"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          >
             Fitur
           </a>
-          <a href="#showcase" className="transition-colors hover:text-foreground">
+          <a
+            href="#showcase"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          >
             Showcase
           </a>
-          <a href="#harga" className="transition-colors hover:text-foreground">
+          <a
+            href="#harga"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          >
             Harga
           </a>
-          <a href="#faq" className="transition-colors hover:text-foreground">
+          <a
+            href="#faq"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          >
             FAQ
           </a>
-          <Link href="/jelajahi" className="transition-colors hover:text-foreground">
+          <Link
+            href="/jelajahi"
+            className="inline-flex min-h-[44px] items-center rounded-lg px-3 transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+          >
             Jelajahi
           </Link>
         </div>
         <Link
           href="/demo"
-          className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+          aria-label="Lihat live demo OpenLynk"
+          className="hidden min-h-[44px] items-center gap-1.5 rounded-full border border-border px-4 text-xs font-semibold text-muted-foreground transition-all hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground sm:inline-flex"
         >
-          <Play className="h-3 w-3 fill-current" />
+          <Play className="h-3 w-3 fill-current" aria-hidden />
           Live Demo
         </Link>
-        <Link href="/klaim">
-          <GradientButton className="!px-4 !py-1.5 !text-xs sm:!px-5 sm:!py-2 sm:!text-sm">
+        <Link
+          href="/masuk"
+          className="hidden min-h-[44px] items-center rounded-full px-4 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground sm:inline-flex"
+        >
+          Masuk
+        </Link>
+        <Link href="/klaim" aria-label="Klaim halaman OpenLynk gratis">
+          <GradientButton className="!min-h-[44px] !px-5 !py-2.5 !text-sm">
             Mulai Gratis
           </GradientButton>
         </Link>
@@ -517,9 +544,9 @@ export default function Home() {
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 shadow-xs">
                           <Icon className="h-5 w-5" />
                         </div>
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                        <Badge variant="secondary">
                           {item.badge}
-                        </span>
+                        </Badge>
                       </div>
                       <h3 className="mt-4 font-display text-lg font-bold text-foreground">
                         {item.title}
@@ -725,7 +752,7 @@ export default function Home() {
                   <ul className="mt-6 space-y-3 text-xs sm:text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <span><strong>2 Halaman</strong> profil bento</span>
+                      <span><strong>1 Halaman</strong> profil bento</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -782,7 +809,7 @@ export default function Home() {
                   <ul className="mt-6 space-y-3 text-xs sm:text-sm text-muted-foreground">
                     <li className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-emerald-500 shrink-0" />
-                      <span><strong>5 Halaman</strong> profil bento</span>
+                      <span><strong>Halaman tanpa batas</strong> profil bento</span>
                     </li>
                     <li className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-emerald-500 shrink-0" />
@@ -834,35 +861,22 @@ export default function Home() {
               </h2>
             </div>
 
-            <div className="space-y-3">
-              {faqs.map((faq, idx) => {
-                const isOpen = openFaq === idx;
-                return (
-                  <div
-                    key={faq.question}
-                    className="rounded-2xl border border-border/70 bg-card overflow-hidden transition-all shadow-xs"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setOpenFaq(isOpen ? null : idx)}
-                      className="flex w-full items-center justify-between p-5 text-left font-display text-sm sm:text-base font-semibold text-foreground gap-4"
-                    >
-                      <span>{faq.question}</span>
-                      <ChevronDown
-                        className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-                          isOpen ? "rotate-180 text-foreground" : ""
-                        }`}
-                      />
-                    </button>
-                    {isOpen && (
-                      <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed border-t border-border/40">
-                        {faq.answer}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <Accordion defaultValue={["faq-0"]} className="space-y-3">
+              {faqs.map((faq, idx) => (
+                <AccordionItem
+                  key={faq.question}
+                  value={`faq-${idx}`}
+                  className="rounded-2xl border border-border/70 bg-card px-5 shadow-xs"
+                >
+                  <AccordionTrigger className="py-5 text-left font-display text-sm sm:text-base font-semibold text-foreground hover:no-underline">
+                    {faq.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-5 pt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                    {faq.answer}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </section>
 

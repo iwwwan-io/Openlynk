@@ -5,6 +5,7 @@ import { getSessionUser, canManagePage } from "@/lib/auth";
 import { client } from "@/lib/db";
 import { getDb } from "@/lib/store";
 import { generateExpiringDownloadUrl } from "@/lib/storage";
+import { formatIndonesianPhone } from "@/lib/whatsapp";
 
 export async function GET(
   req: Request,
@@ -37,7 +38,18 @@ export async function GET(
   const contactQuery = (url.searchParams.get("contact") || url.searchParams.get("email") || "").trim().toLowerCase();
   const orderContact = order.buyerContact.trim().toLowerCase();
 
-  const isVerifiedBuyer = Boolean(contactQuery && contactQuery === orderContact);
+  const normalizedContactQuery = formatIndonesianPhone(contactQuery);
+  const normalizedOrderContact = formatIndonesianPhone(orderContact);
+  const isPhoneMatch = Boolean(
+    normalizedContactQuery &&
+    normalizedOrderContact &&
+    normalizedContactQuery === normalizedOrderContact
+  );
+
+  const isVerifiedBuyer = Boolean(
+    contactQuery &&
+    (contactQuery === orderContact || isPhoneMatch)
+  );
 
   if (!isOwnerOrAdmin && !isVerifiedBuyer) {
     return NextResponse.json(

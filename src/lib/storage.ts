@@ -77,7 +77,13 @@ export async function uploadFile(options: UploadOptions): Promise<UploadResult> 
     };
   }
 
-  // Fallback: Simpan di disk lokal
+  // Fallback: Simpan di disk lokal (hanya untuk dev; di production wajib ImageKit
+  // karena filesystem serverless bersifat ephemeral dan file akan hilang)
+  if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_UPLOADS) {
+    throw new Error(
+      "ImageKit belum dikonfigurasi. Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, dan IMAGEKIT_URL_ENDPOINT untuk production."
+    );
+  }
   const ext = path.extname(fileName).slice(0, 10) || ".bin";
   const uniqueName = `${uid(isPrivate ? "dig" : "up")}${ext}`;
   const baseUploadDir = isPrivate

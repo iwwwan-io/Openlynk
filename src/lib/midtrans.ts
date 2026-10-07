@@ -48,13 +48,28 @@ export async function createSnapToken(params: {
   return { token: json.token, redirectUrl: json.redirect_url, sandbox: !IS_PROD };
 }
 
+export function getSnapScriptUrl(): string {
+  const isProd =
+    process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION === "true" ||
+    process.env.MIDTRANS_IS_PRODUCTION === "true";
+  return isProd
+    ? "https://app.midtrans.com/snap/snap.js"
+    : "https://app.sandbox.midtrans.com/snap/snap.js";
+}
+
 export function verifySignature(input: {
   orderId: string;
   statusCode: string;
   grossAmount: string;
   signatureKey: string;
 }): boolean {
-  if (!SERVER_KEY) return true;
+  if (!SERVER_KEY) {
+    // Mode produksi: wajiib menolak jika MIDTRANS_SERVER_KEY belum disetel
+    if (IS_PROD || process.env.NODE_ENV === "production") {
+      return false;
+    }
+    return true; // Sandbox lokal/testing tanpa server key
+  }
   const hash = crypto
     .createHash("sha512")
     .update(`${input.orderId}${input.statusCode}${input.grossAmount}${SERVER_KEY}`)

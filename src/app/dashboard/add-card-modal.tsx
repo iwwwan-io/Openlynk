@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import type { BentoSize, Product } from "@/lib/types";
 import {
   Link2,
@@ -12,13 +13,19 @@ import {
   Clock,
   ShoppingBag,
   Plus,
-  X,
   Image as ImageIcon,
   Calendar as CalendarIcon,
   Upload,
   Loader2,
   Coffee,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   InstagramIcon,
   YoutubeIcon,
@@ -195,7 +202,7 @@ export function AddCardModal({
       if (!res.ok) throw new Error(data.error ?? "Gagal upload gambar");
       setUrl(data.url);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Gagal upload gambar");
+      toast.error(err instanceof Error ? err.message : "Gagal upload gambar");
     } finally {
       setUploading(false);
     }
@@ -261,36 +268,20 @@ export function AddCardModal({
     "w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-base sm:text-sm text-foreground placeholder:text-muted-foreground focus:border-zinc-900 focus:outline-none dark:focus:border-zinc-100 transition-colors";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl border border-border bg-card shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Mobile handle bar */}
-        <div className="sm:hidden mx-auto mt-2.5 h-1 w-10 rounded-full bg-muted-foreground/30" />
-
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-lg rounded-3xl border-border bg-card p-0 shadow-2xl sm:rounded-3xl max-h-[92vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/60 px-5 sm:px-6 py-3.5 sm:py-4">
+        <DialogHeader className="border-b border-border/60 px-5 sm:px-6 py-3.5 sm:py-4 text-left">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 font-bold text-sm">
               <Plus className="h-4 w-4" />
             </span>
             <div>
-              <h2 className="font-display text-base sm:text-lg font-bold text-foreground">Tambah Kartu Bento</h2>
-              <p className="text-[11px] sm:text-xs text-muted-foreground">Pilih jenis kartu untuk disematkan</p>
+              <DialogTitle className="font-display text-base sm:text-lg font-bold text-foreground">Tambah Kartu Bento</DialogTitle>
+              <DialogDescription className="text-[11px] sm:text-xs text-muted-foreground">Pilih jenis kartu untuk disematkan</DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Category Tabs */}
         <div className="flex gap-1.5 overflow-x-auto no-scrollbar border-b border-border/50 bg-muted/30 px-5 sm:px-6 py-2.5 text-xs">
@@ -1102,7 +1093,7 @@ export function AddCardModal({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

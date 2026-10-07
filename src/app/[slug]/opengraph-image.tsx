@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element -- OG/Satori runtime tidak mendukung next/image */
 import { ImageResponse } from "next/og";
 import { getDb } from "@/lib/store";
 

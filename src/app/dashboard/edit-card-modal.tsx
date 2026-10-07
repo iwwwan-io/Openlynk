@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import type { BentoItem, BentoSize } from "@/lib/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ConfirmDialog } from "@/components/confirm";
 import {
   Link2,
   Heading,
@@ -12,7 +19,6 @@ import {
   MapPin,
   Clock,
   Package,
-  X,
   Trash2,
   Check,
   Loader2,
@@ -120,6 +126,8 @@ function EditCardModalForm({
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -204,65 +212,25 @@ function EditCardModalForm({
   const isHeader = item.type === "header";
   const isProduct = item.type === "product";
 
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
-
-  useEffect(() => {
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = prev;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [onClose]);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/65 backdrop-blur-xs animate-in fade-in duration-150"
-      onClick={onClose}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="relative w-full sm:max-w-md max-h-[92vh] sm:max-h-[88vh] flex flex-col rounded-t-[2rem] sm:rounded-3xl border border-border bg-card shadow-2xl transition-all animate-in slide-in-from-bottom-5 sm:zoom-in-95 duration-200 overflow-hidden"
-      >
-        {/* Mobile Pull Indicator */}
-        <div className="sm:hidden flex justify-center pt-2.5 pb-1 bg-card shrink-0">
-          <div className="h-1.5 w-12 rounded-full bg-muted-foreground/30" />
-        </div>
-
-        {/* Modal Header */}
-        <div className="flex shrink-0 items-center justify-between border-b border-border/60 px-4 sm:px-6 py-3.5 sm:py-4 bg-card">
+  // Dialog shadcn menangani Escape, overlay-klik, dan scroll-lock secara native.
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md rounded-3xl border-border bg-card p-0 shadow-2xl sm:rounded-3xl max-h-[92vh] sm:max-h-[88vh] overflow-hidden flex flex-col">
+        <DialogHeader className="border-b border-border/60 px-4 sm:px-6 py-3.5 sm:py-4 text-left shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <span className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-2xl bg-muted text-foreground">
               <CardIcon type={item.type} className="h-4 w-4 sm:h-5 sm:w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="font-display text-sm sm:text-base font-bold text-foreground truncate">
+              <DialogTitle className="font-display text-sm sm:text-base font-bold text-foreground truncate">
                 Edit Kartu Bento
-              </h3>
-              <p className="text-[11px] text-muted-foreground uppercase font-semibold tracking-wider truncate">
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-muted-foreground uppercase font-semibold tracking-wider truncate">
                 Tipe: {item.type}
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0"
-            title="Tutup"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Modal Body Form */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -801,12 +769,7 @@ function EditCardModalForm({
             {onRemove ? (
               <button
                 type="button"
-                onClick={async () => {
-                  if (confirm("Hapus kartu ini dari kanvas profil?")) {
-                    await onRemove(item.id);
-                    onClose();
-                  }
-                }}
+                onClick={() => setConfirmDelete(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-red-500/30 px-3 py-2 text-xs font-semibold text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                 title="Hapus kartu dari kanvas"
               >
@@ -845,8 +808,26 @@ function EditCardModalForm({
             </div>
           </div>
         </form>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Hapus kartu?"
+        description="Kartu ini akan dihapus dari kanvas profil."
+        confirmLabel="Ya, hapus"
+        danger
+        busy={removing}
+        onConfirm={async () => {
+          if (!onRemove) return;
+          setRemoving(true);
+          try {
+            await onRemove(item.id);
+            onClose();
+          } finally {
+            setRemoving(false);
+          }
+        }}
+      />
+    </Dialog>
   );
 }

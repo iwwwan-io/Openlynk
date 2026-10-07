@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Page, Product } from "@/lib/types";
 import { formatIDR } from "@/lib/types";
 import {
@@ -317,14 +318,14 @@ export function PageProductsManager({
                   Stok Produk
                 </label>
                 <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-muted-foreground select-none">
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={isUnlimited}
-                    onChange={(e) => {
-                      setIsUnlimited(e.target.checked);
-                      if (e.target.checked) setStock("");
+                    onCheckedChange={(v) => {
+                      const next = v === true;
+                      setIsUnlimited(next);
+                      if (next) setStock("");
                     }}
-                    className="rounded-md border-border accent-foreground"
+                    aria-label="Stok unlimited"
                   />
                   <span>Unlimited</span>
                 </label>

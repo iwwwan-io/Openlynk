@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import { type ThemeName, themeVars } from "@/lib/themes";
 import type { SocialLinks, SocialPlatform } from "@/lib/types";
 import { normalizeSocialUrl } from "@/lib/types";
@@ -351,7 +352,7 @@ export function ThemePicker({
     });
     const json = await res.json();
     if (!res.ok) {
-      alert(json.error ?? "Gagal upload gambar");
+      toast.error(json.error ?? "Gagal upload gambar");
       return null;
     }
     return json.url;

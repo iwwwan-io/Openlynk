@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect, useSyncExternalStore } from "react";
-import { createPortal } from "react-dom";
-import { QrCode, Copy, Check, X, Download } from "lucide-react";
+import { useState } from "react";
+import { QrCode, Copy, Check, Download } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export function QrModal({
   slug,
@@ -19,26 +25,8 @@ export function QrModal({
   const [url, setUrl] = useState("");
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const mounted = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => false
-  );
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = originalOverflow;
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  // Dialog shadcn menangani Escape, overlay-klik, dan scroll-lock secara native.
 
   function show(e?: React.MouseEvent) {
     e?.stopPropagation();
@@ -95,45 +83,26 @@ export function QrModal({
         <span>QR</span>
       </button>
 
-      {open &&
-        mounted &&
-        createPortal(
-          <div
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/65 p-4 backdrop-blur-xs animate-in fade-in duration-150"
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-            }}
-          >
-            <div
-              className="relative w-full max-w-sm rounded-3xl border border-border bg-card p-6 text-center shadow-2xl transition-all animate-in zoom-in-95 duration-150"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpen(false);
-                }}
-                className="absolute right-4 top-4 rounded-full p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                title="Tutup"
-              >
-                <X className="h-4 w-4" />
-              </button>
-
-              <div className="flex items-center justify-center gap-2.5 mb-1">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground">
-                  <QrCode className="h-5 w-5" />
-                </span>
-                <div className="text-left">
-                  <p className="font-display font-bold text-base text-foreground leading-tight">
-                    {pageName ? `QR ${pageName}` : "Kode QR Profil"}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground font-mono">
-                    /{slug}
-                  </p>
-                </div>
+      <Dialog open={open} onOpenChange={(v) => !v && setOpen(false)}>
+        <DialogContent
+          className="max-w-sm rounded-3xl border-border bg-card p-6 shadow-2xl sm:rounded-3xl text-center"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <DialogHeader className="text-left">
+            <div className="flex items-center gap-2.5 mb-1">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground">
+                <QrCode className="h-5 w-5" />
+              </span>
+              <div>
+                <DialogTitle className="font-display font-bold text-base text-foreground leading-tight">
+                  {pageName ? `QR ${pageName}` : "Kode QR Profil"}
+                </DialogTitle>
+                <DialogDescription className="text-[11px] text-muted-foreground font-mono">
+                  /{slug}
+                </DialogDescription>
               </div>
+            </div>
+          </DialogHeader>
 
               {/* QR Image Box with White Padded Background for Reliable Scanning */}
               <div className="mx-auto mt-4 inline-block rounded-2xl border border-border/80 bg-white p-3.5 shadow-xs">
@@ -180,10 +149,8 @@ export function QrModal({
                   <span>{downloading ? "Mengunduh..." : "Unduh QR"}</span>
                 </button>
               </div>
-            </div>
-          </div>,
-          document.body
-        )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

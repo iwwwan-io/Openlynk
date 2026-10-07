@@ -6,6 +6,14 @@ import { markOrderPaid } from "@/lib/store";
 // Sandbox helper: tandai order pending -> paid tanpa signature.
 // Hanya untuk demo; di produksi pakai webhook Midtrans asli.
 export async function POST(req: Request) {
+  // Cegah eksploitasi di lingkungan produksi
+  if (process.env.NODE_ENV === "production" || process.env.MIDTRANS_IS_PRODUCTION === "true") {
+    return NextResponse.json(
+      { error: "Endpoint simulasi pembayaran dinonaktifkan di mode produksi." },
+      { status: 403 }
+    );
+  }
+
   const body = (await req.json()) as { orderId?: string };
   if (!body.orderId) return NextResponse.json({ error: "orderId wajib" }, { status: 400 });
 

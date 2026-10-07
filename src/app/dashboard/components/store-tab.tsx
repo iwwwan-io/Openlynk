@@ -6,13 +6,27 @@ import { formatIDR } from "@/lib/types";
 import {
   CheckCircle2,
   Clock,
-  Truck,
-  XCircle,
   Search,
   ShoppingBag,
   Package,
+  Copy,
+  Check,
+  TrendingUp,
+  MessageCircle,
+  Download,
 } from "lucide-react";
 import { PageProductsManager } from "./page-products-manager";
+import { exportOrdersToCSV } from "@/lib/export-csv";
+import { StatusBadge } from "@/components/status-badge";
+import { DataPagination } from "@/components/data-pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface StoreTabProps {
   orders: Order[];
@@ -45,20 +59,8 @@ interface StoreTabProps {
   onUploadFile?: (e: React.ChangeEvent<HTMLInputElement>, productId: string) => Promise<void>;
 }
 
-function statusBadge(s: string) {
-  if (s === "paid") {
-    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800";
-  }
-  if (s === "sent") {
-    return "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300 border-blue-300 dark:border-blue-800";
-  }
-  if (s === "pending") {
-    return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border-amber-300 dark:border-amber-800";
-  }
-  if (s === "expired") {
-    return "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400 border-zinc-300 dark:border-zinc-700";
-  }
-  return "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300 border-red-300 dark:border-red-800";
+function OrderStatus({ status }: { status: string }) {
+  return <StatusBadge value={status} icon />;
 }
 
 export function StoreTab({
@@ -75,6 +77,25 @@ export function StoreTab({
   const [storeView, setStoreView] = useState<"orders" | "products">("orders");
   const [filter, setFilter] = useState<string>("all");
   const [query, setQuery] = useState("");
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [orderPage, setOrderPage] = useState(1);
+  const ORDERS_LIMIT = 10;
+
+  function copyId(id: string) {
+    navigator.clipboard.writeText(id);
+    setCopiedOrderId(id);
+    setTimeout(() => setCopiedOrderId(null), 1800);
+  }
+
+  function getWhatsAppUrl(contact: string, orderId: string, buyerName: string) {
+    const digits = contact.replace(/[^0-9]/g, "");
+    if (!digits || digits.length < 8) return null;
+    let phone = digits;
+    if (phone.startsWith("0")) phone = "62" + phone.slice(1);
+    else if (phone.startsWith("8")) phone = "62" + phone;
+    const msg = encodeURIComponent(`Halo ${buyerName}, kami dari OpenLynk terkait pesanan #${orderId}.`);
+    return `https://wa.me/${phone}?text=${msg}`;
+  }
 
   const filteredOrders = orders.filter((o) => {
     if (filter !== "all" && o.status !== filter) return false;
@@ -96,25 +117,39 @@ export function StoreTab({
   const paidCount = orders.filter((o) => o.status === "paid" || o.status === "sent").length;
   const pendingCount = orders.filter((o) => o.status === "pending").length;
 
+  const totalOrderPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_LIMIT));
+  const safeOrderPage = Math.min(Math.max(orderPage, 1), totalOrderPages);
+  const pagedOrders = filteredOrders.slice((safeOrderPage - 1) * ORDERS_LIMIT, safeOrderPage * ORDERS_LIMIT);
+
   return (
     <div className="space-y-6">
       {/* Store Metrics Summary Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-2xs">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Total Omset Lunas
-          </p>
-          <p className="mt-1 font-display text-xl sm:text-2xl font-extrabold text-foreground">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Total Omset
+            </p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <TrendingUp className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="mt-2 font-display text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
             {formatIDR(totalRevenue)}
           </p>
           <p className="text-[10px] text-muted-foreground mt-0.5">Dari transaksi lunas</p>
         </div>
 
-        <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-2xs">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Pesanan Sukses
-          </p>
-          <div className="mt-1 flex items-baseline gap-1.5">
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Pesanan Sukses
+            </p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
             <span className="font-display text-xl sm:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400">
               {paidCount}
             </span>
@@ -123,21 +158,31 @@ export function StoreTab({
           <p className="text-[10px] text-muted-foreground mt-0.5">Lunas & Terkirim</p>
         </div>
 
-        <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-2xs">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Menunggu Bayar
-          </p>
-          <p className="mt-1 font-display text-xl sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400">
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Menunggu Bayar
+            </p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Clock className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="mt-2 font-display text-xl sm:text-2xl font-extrabold text-amber-600 dark:text-amber-400">
             {pendingCount}
           </p>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Status pending</p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Pending checkout</p>
         </div>
 
-        <div className="rounded-3xl border border-border bg-card p-4 sm:p-5 shadow-2xs">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Katalog Produk
-          </p>
-          <p className="mt-1 font-display text-xl sm:text-2xl font-extrabold text-foreground">
+        <div className="rounded-3xl border border-border/80 bg-card p-4 sm:p-5 shadow-sm transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Katalog Produk
+            </p>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <Package className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="mt-2 font-display text-xl sm:text-2xl font-extrabold text-foreground">
             {products.length}
           </p>
           <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -207,7 +252,7 @@ export function StoreTab({
                   <button
                     key={f.id}
                     type="button"
-                    onClick={() => setFilter(f.id)}
+                    onClick={() => { setFilter(f.id); setOrderPage(1); }}
                     className={`flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-colors ${
                       filter === f.id
                         ? "bg-foreground text-background font-bold shadow-xs"
@@ -220,16 +265,29 @@ export function StoreTab({
                 ))}
               </div>
 
-              {/* Search Input */}
-              <div className="flex items-center rounded-xl border border-border bg-background px-3 py-1.5 w-full sm:w-64 shrink-0 shadow-2xs">
-                <Search className="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari pembeli atau ID..."
-                  className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
-                />
+              {/* Search & Export Buttons */}
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                <div className="flex items-center rounded-xl border border-border bg-background px-3 py-1.5 w-full sm:w-60 shadow-2xs">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground mr-2 shrink-0" />
+                  <input
+                    type="text"
+                    value={query}
+                    onChange={(e) => { setQuery(e.target.value); setOrderPage(1); }}
+                    placeholder="Cari pembeli atau ID..."
+                    className="w-full bg-transparent text-xs text-foreground placeholder:text-muted-foreground outline-none"
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => exportOrdersToCSV(filteredOrders, products, activePage?.name || "Toko")}
+                  disabled={filteredOrders.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-background/80 hover:bg-muted px-3 py-1.5 text-xs font-semibold text-foreground transition-colors cursor-pointer shadow-2xs disabled:opacity-50 shrink-0"
+                  title="Unduh data pesanan ke berkas CSV (Excel)"
+                >
+                  <Download className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="hidden sm:inline">Export CSV</span>
+                </button>
               </div>
             </div>
 
@@ -241,114 +299,157 @@ export function StoreTab({
               <>
                 {/* Mobile Order Cards View (shown on screens < 640px) */}
                 <div className="grid grid-cols-1 gap-3 sm:hidden">
-                  {filteredOrders.map((o) => (
-                    <div
-                      key={o.id}
-                      className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-2xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs text-foreground">
-                          #{o.id}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${statusBadge(
-                            o.status
-                          )}`}
-                        >
-                          {o.status === "paid" && <CheckCircle2 className="h-3 w-3" />}
-                          {o.status === "pending" && <Clock className="h-3 w-3" />}
-                          {o.status === "sent" && <Truck className="h-3 w-3" />}
-                          {o.status === "cancelled" && <XCircle className="h-3 w-3" />}
-                          <span className="capitalize">{o.status}</span>
-                        </span>
-                      </div>
-
-                      <div className="space-y-1 text-xs">
-                        <p className="font-bold text-foreground">{o.buyerName}</p>
-                        <p className="font-mono text-[11px] text-muted-foreground break-all">
-                          {o.buyerContact}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-border/50 pt-2.5">
-                        <div>
-                          <p className="text-[10px] text-muted-foreground">Total Tagihan</p>
-                          <p className="font-mono font-bold text-sm text-foreground">
-                            {formatIDR(o.totalIdr + o.feeIdr)}
-                          </p>
-                        </div>
-
-                        {o.status === "paid" && (
+                  {pagedOrders.map((o) => {
+                    const waUrl = getWhatsAppUrl(o.buyerContact, o.id, o.buyerName);
+                    return (
+                      <div
+                        key={o.id}
+                        className="rounded-2xl border border-border/80 bg-card p-4 space-y-3 shadow-2xs"
+                      >
+                        <div className="flex items-center justify-between">
                           <button
                             type="button"
-                            onClick={() => onFulfillOrder(o.id)}
-                            className="rounded-xl bg-foreground text-background px-3.5 py-1.5 text-xs font-bold hover:opacity-90 active:scale-95 transition-all shadow-2xs"
+                            onClick={() => copyId(o.id)}
+                            className="inline-flex items-center gap-1 font-mono font-bold text-xs text-foreground hover:text-primary transition-colors cursor-pointer"
+                            title="Salin ID Pesanan"
                           >
-                            Tandai Dikirim
+                            <span>#{o.id.slice(0, 12)}...</span>
+                            {copiedOrderId === o.id ? (
+                              <Check className="h-3 w-3 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-muted-foreground opacity-60" />
+                            )}
                           </button>
-                        )}
+                          <OrderStatus status={o.status} />
+                        </div>
+
+                        <div className="space-y-1.5 text-xs">
+                          <p className="font-bold text-foreground text-sm">{o.buyerName}</p>
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="font-mono text-[11px] text-muted-foreground break-all">
+                              {o.buyerContact}
+                            </span>
+                            {waUrl && (
+                              <a
+                                href={waUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                              >
+                                <MessageCircle className="h-3 w-3" />
+                                <span>Chat WA</span>
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-border/50 pt-2.5">
+                          <div>
+                            <p className="text-[10px] text-muted-foreground">Total Tagihan</p>
+                            <p className="font-mono font-bold text-sm text-foreground">
+                              {formatIDR(o.totalIdr + o.feeIdr)}
+                            </p>
+                          </div>
+
+                          {o.status === "paid" && (
+                            <button
+                              type="button"
+                              onClick={() => onFulfillOrder(o.id)}
+                              className="rounded-xl bg-foreground text-background px-3.5 py-1.5 text-xs font-bold hover:opacity-90 active:scale-95 transition-all shadow-2xs cursor-pointer"
+                            >
+                              Tandai Dikirim
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Desktop Responsive Table View (hidden on screens < 640px) */}
-                <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border/70">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-border/60 bg-muted/30 text-muted-foreground uppercase tracking-wider text-[11px]">
-                        <th className="py-3 px-3.5 font-semibold">ID Pesanan</th>
-                        <th className="py-3 px-3.5 font-semibold">Pembeli</th>
-                        <th className="py-3 px-3.5 font-semibold">Kontak</th>
-                        <th className="py-3 px-3.5 font-semibold">Total Tagihan</th>
-                        <th className="py-3 px-3.5 font-semibold">Status</th>
-                        <th className="py-3 px-3.5 font-semibold text-right">Aksi</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/40">
-                      {filteredOrders.map((o) => (
-                        <tr key={o.id} className="hover:bg-muted/30 transition-colors">
-                          <td className="py-3.5 px-3.5 font-mono text-[11px] text-muted-foreground">
-                            #{o.id}
-                          </td>
-                          <td className="py-3.5 px-3.5 font-bold text-foreground">{o.buyerName}</td>
-                          <td className="py-3.5 px-3.5 font-mono text-[11px] text-muted-foreground max-w-xs truncate">
-                            {o.buyerContact}
-                          </td>
-                          <td className="py-3.5 px-3.5 font-bold font-mono">
-                            {formatIDR(o.totalIdr + o.feeIdr)}
-                          </td>
-                          <td className="py-3.5 px-3.5">
-                            <span
-                              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[10px] font-bold border ${statusBadge(
-                                o.status
-                              )}`}
-                            >
-                              {o.status === "paid" && <CheckCircle2 className="h-3 w-3" />}
-                              {o.status === "pending" && <Clock className="h-3 w-3" />}
-                              {o.status === "sent" && <Truck className="h-3 w-3" />}
-                              {o.status === "cancelled" && <XCircle className="h-3 w-3" />}
-                              <span className="capitalize">{o.status}</span>
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-3.5 text-right">
-                            {o.status === "paid" ? (
+                <div className="hidden sm:block overflow-x-auto rounded-2xl border border-border/70 bg-card">
+                  <Table className="text-xs">
+                    <TableHeader>
+                      <TableRow className="border-b border-border/60 bg-muted/40 uppercase tracking-wider text-[11px] hover:bg-muted/40">
+                        <TableHead className="py-3.5 px-4 font-semibold">ID Pesanan</TableHead>
+                        <TableHead className="py-3.5 px-4 font-semibold">Pembeli</TableHead>
+                        <TableHead className="py-3.5 px-4 font-semibold">Kontak</TableHead>
+                        <TableHead className="py-3.5 px-4 font-semibold">Total Tagihan</TableHead>
+                        <TableHead className="py-3.5 px-4 font-semibold">Status</TableHead>
+                        <TableHead className="py-3.5 px-4 font-semibold text-right">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pagedOrders.map((o) => {
+                        const waUrl = getWhatsAppUrl(o.buyerContact, o.id, o.buyerName);
+                        return (
+                          <TableRow key={o.id} className="hover:bg-muted/20">
+                            <TableCell className="py-3.5 px-4">
                               <button
                                 type="button"
-                                onClick={() => onFulfillOrder(o.id)}
-                                className="rounded-full bg-foreground text-background px-3 py-1 text-[11px] font-semibold hover:opacity-90 active:scale-95 transition-all shadow-2xs"
+                                onClick={() => copyId(o.id)}
+                                className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground hover:text-foreground transition-colors cursor-pointer group"
+                                title="Salin ID Pesanan"
                               >
-                                Tandai Dikirim
+                                <span>#{o.id.slice(0, 10)}...</span>
+                                {copiedOrderId === o.id ? (
+                                  <Check className="h-3 w-3 text-emerald-500" />
+                                ) : (
+                                  <Copy className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                )}
                               </button>
-                            ) : (
-                              <span className="text-[11px] text-muted-foreground font-mono">-</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                            </TableCell>
+                            <TableCell className="py-3.5 px-4 font-bold text-foreground">{o.buyerName}</TableCell>
+                            <TableCell className="py-3.5 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-[11px] text-muted-foreground max-w-xs truncate">
+                                  {o.buyerContact}
+                                </span>
+                                {waUrl && (
+                                  <a
+                                    href={waUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                                    title="Chat WhatsApp Pembeli"
+                                  >
+                                    <MessageCircle className="h-2.5 w-2.5" />
+                                    <span>WA</span>
+                                  </a>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-3.5 px-4 font-bold font-mono text-foreground">
+                              {formatIDR(o.totalIdr + o.feeIdr)}
+                            </TableCell>
+                            <TableCell className="py-3.5 px-4">
+                              <OrderStatus status={o.status} />
+                            </TableCell>
+                            <TableCell className="py-3.5 px-4 text-right">
+                              {o.status === "paid" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onFulfillOrder(o.id)}
+                                  className="rounded-full bg-foreground text-background px-3 py-1 text-[11px] font-semibold hover:opacity-90 active:scale-95 transition-all shadow-2xs cursor-pointer"
+                                >
+                                  Tandai Dikirim
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-muted-foreground font-mono">-</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
+                <DataPagination
+                  page={safeOrderPage}
+                  total={filteredOrders.length}
+                  limit={ORDERS_LIMIT}
+                  onChange={setOrderPage}
+                />
               </>
             )}
           </div>

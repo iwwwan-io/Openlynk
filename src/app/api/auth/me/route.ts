@@ -69,6 +69,18 @@ export async function PATCH(req: Request) {
       plan?: "free" | "pro";
     };
 
+    // P0: Cegah self-upgrade gratis ke Pro. Upgrade hanya via admin/billing.
+    if (body.plan === "pro" && user.role !== "admin") {
+      return NextResponse.json(
+        {
+          error:
+            "Upgrade ke Pro memerlukan pembayaran terverifikasi. Hubungi admin / selesaikan pembayaran Pro terlebih dahulu.",
+          requiresPayment: true,
+        },
+        { status: 403 }
+      );
+    }
+
     const updatedUser = await updateUserProfile(user.id, body);
     if (!updatedUser) {
       return NextResponse.json({ error: "User tidak ditemukan" }, { status: 404 });

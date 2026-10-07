@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDb } from "@/lib/store";
 import { HomeFooter, NavbarShell } from "@/components/site";
-import { GradientButton } from "@/components/ui";
+import { GradientButton } from "@/components/primitives";
 
 export default async function Explore() {
   const db = await getDb();

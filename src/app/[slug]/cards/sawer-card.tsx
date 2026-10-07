@@ -1,16 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import {
   Coffee,
   Heart,
-  X,
   Sparkles,
   Loader2,
   CheckCircle2,
   ExternalLink,
   ChevronRight,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { BentoSize } from "@/lib/types";
 import { formatIDR } from "@/lib/types";
 import { fee } from "@/lib/validate";
@@ -80,7 +88,7 @@ export function SawerCard({
 
       const data = await res.json();
       if (!res.ok) {
-        alert(data.error || "Gagal memproses donasi. Silakan coba lagi.");
+        toast.error(data.error || "Gagal memproses donasi. Silakan coba lagi.");
         setSubmitting(false);
         return;
       }
@@ -100,7 +108,7 @@ export function SawerCard({
         });
       }
     } catch {
-      alert("Terjadi kesalahan koneksi. Silakan periksa jaringan Anda.");
+      toast.error("Terjadi kesalahan koneksi. Silakan periksa jaringan Anda.");
     } finally {
       setSubmitting(false);
     }
@@ -337,22 +345,15 @@ export function SawerCard({
   );
 
   function renderModal() {
-    if (!modalOpen) return null;
-
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs animate-fade-in">
-        <div className="relative w-full max-w-md overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-2xl">
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={() => {
-              setModalOpen(false);
-              setSuccess(false);
-            }}
-            className="absolute top-4 right-4 flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-          >
-            <X className="h-4 w-4" />
-          </button>
+      <Dialog open={modalOpen} onOpenChange={(v) => { if (!v) { setModalOpen(false); setSuccess(false); } }}>
+        <DialogContent className="max-w-md rounded-3xl border-border bg-card p-6 shadow-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="text-left">
+            <DialogTitle className="sr-only">{title || "Dukung kreator"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulir donasi via QRIS
+            </DialogDescription>
+          </DialogHeader>
 
           {success ? (
             <div className="py-6 text-center">
@@ -469,11 +470,10 @@ export function SawerCard({
                   <div className="flex items-center justify-between text-xs">
                     <label className="font-semibold text-foreground">Nama Pengirim</label>
                     <label className="flex items-center gap-1.5 cursor-pointer text-muted-foreground text-[11px]">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={isAnonymous}
-                        onChange={(e) => setIsAnonymous(e.target.checked)}
-                        className="rounded"
+                        onCheckedChange={(v) => setIsAnonymous(v === true)}
+                        aria-label="Kirim anonim"
                       />
                       <span>Kirim Anonim</span>
                     </label>
@@ -523,7 +523,7 @@ export function SawerCard({
                   <span className="font-mono font-semibold text-foreground">{formatIDR(nominal)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Biaya Layanan (5%):</span>
+                  <span>Biaya Layanan (3–5%):</span>
                   <span className="font-mono text-muted-foreground">{formatIDR(feeAmount)}</span>
                 </div>
                 <div className="flex justify-between border-t border-border/50 pt-1 font-bold text-foreground">
@@ -551,8 +551,8 @@ export function SawerCard({
               </button>
             </form>
           )}
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
     );
   }
 }

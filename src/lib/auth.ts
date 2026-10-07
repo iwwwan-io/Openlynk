@@ -6,10 +6,6 @@ import { uid, type User, type Session } from "./types";
 export const SESSION_COOKIE_NAME = "openlynk_session";
 const SESSION_DURATION_DAYS = 30;
 
-export function adminRequired(): boolean {
-  return Boolean(process.env.ADMIN_TOKEN);
-}
-
 export function isAdmin(req?: Request): boolean {
   const token = process.env.ADMIN_TOKEN;
   if (!token || token.trim() === "") return false;
@@ -62,6 +58,7 @@ export async function getUserByEmail(email: string): Promise<(User & { passwordH
     role: (r.role as "creator" | "admin") || "creator",
     plan: (r.plan as "free" | "pro") || "free",
     passwordHash: String(r.password_hash),
+    suspended: Boolean(r.suspended),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -82,6 +79,7 @@ export async function getUserById(id: string): Promise<User | null> {
     avatar: r.avatar ? String(r.avatar) : undefined,
     role: (r.role as "creator" | "admin") || "creator",
     plan: (r.plan as "free" | "pro") || "free",
+    suspended: Boolean(r.suspended),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -108,11 +106,6 @@ export async function updateUserProfile(
   });
 
   return getUserById(userId);
-}
-
-export function isUserPro(user: User | null): boolean {
-  if (!user) return false;
-  return user.role === "admin" || user.plan === "pro";
 }
 
 // 4. Session Management
@@ -151,7 +144,7 @@ export async function validateSessionToken(token: string): Promise<User | null> 
   await ensureDbInitialized();
 
   const res = await client.execute({
-    sql: `SELECT s.id as session_id, s.expires_at, u.id, u.email, u.name, u.avatar, u.role, u.plan, u.created_at, u.updated_at
+    sql: `SELECT s.id as session_id, s.expires_at, u.id, u.email, u.name, u.avatar, u.role, u.plan, u.suspended, u.created_at, u.updated_at
           FROM sessions s
           JOIN users u ON s.user_id = u.id
           WHERE s.token = ? LIMIT 1;`,
@@ -174,6 +167,7 @@ export async function validateSessionToken(token: string): Promise<User | null> 
     avatar: r.avatar ? String(r.avatar) : undefined,
     role: (r.role as "creator" | "admin") || "creator",
     plan: (r.plan as "free" | "pro") || "free",
+    suspended: Boolean(r.suspended),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
   };
@@ -249,10 +243,16 @@ export async function canManagePage(
     return true;
   }
 
-  // Jika halaman belum memiliki user_id (unclaimed/legacy) dan ada ADMIN_TOKEN yang cocok atau mode sandbox
+  // Jika halaman belum memiliki user_id (unclaimed/legacy):
+  // - Admin via ADMIN_TOKEN selalu boleh
+  // - User login boleh klaim (PATCH akan assign user_id)
+  // - Anonim hanya boleh di sandbox lokal non-production tanpa ADMIN_TOKEN
   if (!page.user_id) {
-    if (!process.env.ADMIN_TOKEN) return true; // dev sandbox
     if (req && isAdmin(req)) return true;
+    if (user) return true;
+    const isProd = process.env.NODE_ENV === "production";
+    const hasAdminToken = Boolean(process.env.ADMIN_TOKEN?.trim());
+    if (!isProd && !hasAdminToken) return true;
   }
 
   return false;

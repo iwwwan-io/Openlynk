@@ -209,6 +209,7 @@ async function ResponsiveBentoGrid({
             </div>
           );
         }
+        if (b.type !== "product") return null;
         const p = productMap.get(b.productId);
         if (!p) return null;
         return (

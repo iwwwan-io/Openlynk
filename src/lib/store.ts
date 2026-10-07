@@ -47,10 +47,13 @@ export async function getDb(): Promise<Db> {
     bannerImage: r.banner_image ? String(r.banner_image) : undefined,
     socials: r.socials
       ? typeof r.socials === "string"
-        ? JSON.parse(r.socials)
+        ? JSON.parse(r.socials as string)
         : r.socials
       : undefined,
     customDomain: r.custom_domain ? String(r.custom_domain) : undefined,
+    metaPixelId: r.meta_pixel_id ? String(r.meta_pixel_id) : undefined,
+    tiktokPixelId: r.tiktok_pixel_id ? String(r.tiktok_pixel_id) : undefined,
+    googleAnalyticsId: r.google_analytics_id ? String(r.google_analytics_id) : undefined,
     theme: ((r.theme as ThemeName) ?? "default"),
     accentColor: String(r.accent_color ?? "#18181b"),
     darkMode: Boolean(r.dark_mode),
@@ -156,13 +159,16 @@ export async function saveDb(nextDb: Db): Promise<void> {
     // Pertahankan userId yang sudah ada di database jika di memori tidak terdefinisi
     const finalUserId = p.userId ?? existingUserIdMap.get(p.id) ?? "usr_demo";
     await client.execute({
-      sql: `INSERT OR REPLACE INTO pages (id, user_id, slug, custom_domain, name, bio, image, banner_image, socials, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      sql: `INSERT OR REPLACE INTO pages (id, user_id, slug, custom_domain, meta_pixel_id, tiktok_pixel_id, google_analytics_id, name, bio, image, banner_image, socials, theme, accent_color, dark_mode, is_public, bento, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       args: [
         p.id,
         finalUserId,
         p.slug,
         p.customDomain ?? null,
+        p.metaPixelId ?? null,
+        p.tiktokPixelId ?? null,
+        p.googleAnalyticsId ?? null,
         p.name,
         p.bio ?? "",
         p.image ?? null,

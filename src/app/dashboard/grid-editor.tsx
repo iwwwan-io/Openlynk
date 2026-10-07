@@ -30,6 +30,7 @@ import {
   GithubIcon,
   SpotifyIcon,
 } from "@/components/social-icons";
+import { Badge } from "@/components/ui/badge";
 import { EditCardModal } from "./edit-card-modal";
 import "react-grid-layout/css/styles.css";
 
@@ -284,9 +285,9 @@ function BentoCardInner({
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-zinc-800">
             <GithubIcon className="h-4 w-4" />
           </div>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-mono font-semibold text-muted-foreground">
+          <Badge variant="secondary" className="font-mono">
             GitHub
-          </span>
+          </Badge>
         </div>
         <div>
           <p className="font-display text-sm font-bold text-foreground truncate">
@@ -344,27 +345,54 @@ function BentoCardInner({
     );
   }
 
-  // Fallback: Link Card
-  return (
-    <div className="flex h-full w-full flex-col justify-between p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground">
-          <BentoIconComponent b={b} className="h-4 w-4" />
+  if (b.type === "link") {
+    return (
+      <div className="flex h-full w-full flex-col justify-between p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground">
+            <BentoIconComponent b={b} className="h-4 w-4" />
+          </div>
+          <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" />
         </div>
-        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" />
-      </div>
-      <div>
-        <p className="font-display text-sm font-bold text-foreground line-clamp-1">
-          {b.title || "Tautan"}
-        </p>
-        {b.href && (
-          <p className="text-[10px] text-muted-foreground truncate font-mono mt-0.5">
-            {b.href}
+        <div>
+          <p className="font-display text-sm font-bold text-foreground line-clamp-1">
+            {b.title || "Tautan"}
           </p>
-        )}
+          {b.href && (
+            <p className="text-[10px] text-muted-foreground truncate font-mono mt-0.5">
+              {b.href}
+            </p>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (b.type === "newsletter") {
+    return (
+      <div className="flex h-full w-full flex-col justify-between p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-foreground">
+            <BentoIconComponent b={b} className="h-4 w-4" />
+          </div>
+          <Badge variant="secondary">
+            Newsletter
+          </Badge>
+        </div>
+        <div>
+          <p className="font-display text-sm font-bold text-foreground line-clamp-1">
+            {b.title || "Newsletter"}
+          </p>
+          <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+            {b.description || "Berlangganan update terbaru"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback: tipe tak dikenal
+  return null;
 }
 
 export function GridEditor({
@@ -572,7 +600,7 @@ export function GridEditor({
         ref={containerRef}
         className={`relative mx-auto transition-all duration-300 min-h-[420px] ${
           deviceView === "mobile"
-            ? "max-w-[460px] rounded-[40px] border-[5px] border-border/80 bg-card/60 shadow-2xl p-4 sm:p-5 ring-1 ring-border/50"
+            ? "max-w-[460px] phone-mockup-frame p-4 sm:p-5 ring-1 ring-border/50"
             : "w-full rounded-3xl border border-border/70 bg-muted/10 p-3 sm:p-6"
         }`}
         style={{
@@ -580,29 +608,50 @@ export function GridEditor({
           backgroundSize: "20px 20px",
         }}
       >
-        {/* Device Notch Indicator when in Mobile Mode on Desktop */}
+        {/* Device Notch & Status Bar Indicator when in Mobile Mode */}
         {deviceView === "mobile" && (
-          <div className="mb-4 flex flex-col items-center justify-center gap-1 text-center border-b border-border/50 pb-2">
-            <div className="h-3.5 w-24 rounded-full bg-foreground/15 mb-1" />
-            <span className="text-[10px] font-mono text-muted-foreground">
+          <div className="mb-4 flex flex-col items-center justify-between border-b border-border/40 pb-2.5">
+            <div className="w-full flex items-center justify-between px-3 text-[11px] font-mono text-muted-foreground select-none">
+              <span className="font-bold text-foreground">09:41</span>
+              <div className="h-4 w-24 rounded-full bg-foreground/20 flex items-center justify-center">
+                <span className="h-2 w-2 rounded-full bg-foreground/50 mr-2" />
+                <span className="h-1.5 w-1.5 rounded-full bg-foreground/30" />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-foreground">5G</span>
+                <span className="inline-block h-2.5 w-4 rounded-xs border border-muted-foreground p-0.5">
+                  <span className="block h-full w-full rounded-2xs bg-foreground" />
+                </span>
+              </div>
+            </div>
+            <div className="mt-2 text-[10px] font-mono text-muted-foreground">
               Pratinjau Layar Ponsel (2 Kolom)
-            </span>
+            </div>
           </div>
         )}
+
         {bento.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <Sparkles className="h-8 w-8 mb-2 text-muted-foreground/60" />
-            <p className="font-display font-semibold text-foreground">Kanvas Studio Kosong</p>
-            <p className="text-xs text-muted-foreground mt-1 mb-4">Tambahkan kartu bento pertama untuk profil ini</p>
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center space-y-4">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-muted/80 text-muted-foreground shadow-xs">
+              <Sparkles className="h-8 w-8 text-foreground" />
+            </div>
+            <div>
+              <p className="font-display text-lg font-bold text-foreground">Kanvas Bento Masih Kosong</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
+                Mulai bangun halaman bento impianmu dengan menambahkan tautan sosmed, produk digital, atau kartu multimedia.
+              </p>
+            </div>
             {onAddClick && (
-              <button
-                type="button"
-                onClick={onAddClick}
-                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900 px-5 py-2 text-xs font-semibold text-white dark:bg-white dark:text-zinc-900"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                <span>Tambah Kartu Sekarang</span>
-              </button>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={onAddClick}
+                  className="inline-flex items-center gap-2 rounded-xl bg-foreground text-background px-5 py-2.5 text-xs font-bold shadow-md hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Tambah Kartu Sekarang</span>
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -691,6 +740,13 @@ export function GridEditor({
               })}
             </Responsive>
           )
+        )}
+
+        {/* Mobile Mockup Home Indicator Bar */}
+        {deviceView === "mobile" && (
+          <div className="mt-6 flex justify-center pb-1">
+            <div className="h-1 w-28 rounded-full bg-foreground/25" />
+          </div>
         )}
       </div>
 

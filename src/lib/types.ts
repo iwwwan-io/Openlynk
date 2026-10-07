@@ -23,6 +23,16 @@ export type BentoItem =
       currentAmount?: number;
       size?: BentoSize;
       pos?: XY;
+    }
+  | {
+      id: string;
+      type: "newsletter";
+      title?: string;
+      description?: string;
+      placeholder?: string;
+      buttonText?: string;
+      size?: BentoSize;
+      pos?: XY;
     };
 
 import type { ThemeName } from "./themes";
@@ -98,6 +108,7 @@ export type User = {
   avatar?: string;
   role: "creator" | "admin";
   plan?: UserPlan;
+  suspended?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -120,6 +131,9 @@ export type Page = {
   bannerImage?: string;
   socials?: SocialLinks;
   customDomain?: string;
+  metaPixelId?: string;
+  tiktokPixelId?: string;
+  googleAnalyticsId?: string;
   bento: BentoItem[];
   theme: ThemeName;
   accentColor: string;
@@ -138,6 +152,8 @@ export type Product = {
   originalPriceIdr?: number;
   stock: number | null;
   kind: "digital" | "fisik";
+  deliveryType?: "download" | "redirect";
+  accessUrl?: string;
   imageUrl?: string;
   fileUrl?: string;
   isActive: boolean;

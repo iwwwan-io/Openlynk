@@ -28,8 +28,8 @@ export function proxy(request: NextRequest) {
       (effectiveHost === process.env.NEXT_PUBLIC_APP_DOMAIN ||
         effectiveHost.endsWith(`.${process.env.NEXT_PUBLIC_APP_DOMAIN}`)));
 
-  // 1. Proteksi rute dashboard: hanya user login yang dapat mengakses
-  if (pathname.startsWith("/dashboard")) {
+  // 1. Proteksi rute dashboard & admin: hanya user login yang dapat mengakses
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
     const sessionCookie = request.cookies.get("openlynk_session")?.value;
     const authHeader =
       request.headers.get("authorization") ||
@@ -51,8 +51,14 @@ export function proxy(request: NextRequest) {
       pathname.startsWith("/uploads") ||
       pathname.startsWith("/masuk") ||
       pathname.startsWith("/daftar") ||
+      pathname.startsWith("/lupa-password") ||
       pathname.startsWith("/akses") ||
       pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/admin") ||
+      pathname.startsWith("/terms") ||
+      pathname.startsWith("/privacy") ||
+      pathname.startsWith("/refund") ||
+      pathname.startsWith("/kontak") ||
       pathname === "/favicon.ico" ||
       pathname === "/robots.txt" ||
       pathname === "/sitemap.xml";

@@ -11,6 +11,9 @@ export const users = sqliteTable(
     avatar: text("avatar"),
     role: text("role", { enum: ["creator", "admin"] }).notNull().default("creator"),
     plan: text("plan", { enum: ["free", "pro"] }).notNull().default("free"),
+    suspended: integer("suspended", { mode: "boolean" }).notNull().default(false),
+    suspendedAt: text("suspended_at"),
+    suspendedReason: text("suspended_reason"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -43,6 +46,9 @@ export const pages = sqliteTable(
     userId: text("user_id").references(() => users.id, { onDelete: "set null" }),
     slug: text("slug").notNull().unique(),
     customDomain: text("custom_domain").unique(),
+    metaPixelId: text("meta_pixel_id"),
+    tiktokPixelId: text("tiktok_pixel_id"),
+    googleAnalyticsId: text("google_analytics_id"),
     name: text("name").notNull(),
     bio: text("bio").notNull().default(""),
     image: text("image"),
@@ -220,3 +226,38 @@ export const payoutRequests = sqliteTable(
     index("idx_payout_requests_status").on(table.status),
   ]
 );
+
+export const passwordResetTokens = sqliteTable(
+  "password_reset_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_password_reset_tokens_token").on(table.token),
+    index("idx_password_reset_tokens_user_id").on(table.userId),
+  ]
+);
+
+export const adminAuditLog = sqliteTable(
+  "admin_audit_log",
+  {
+    id: text("id").primaryKey(),
+    adminId: text("admin_id").notNull(),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    notes: text("notes"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_admin_audit_log_admin_id").on(table.adminId),
+    index("idx_admin_audit_log_created_at").on(table.createdAt),
+  ]
+);
+

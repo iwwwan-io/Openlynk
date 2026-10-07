@@ -20,6 +20,9 @@ export const SUPPORTED_BANKS = [
 
 /**
  * Menghitung saldo kreator secara akurat berdasarkan riwayat transaksi dan penarikan.
+ * Model fee-on-top: pembeli bayar total+fee via Midtrans, kreator berhak atas total penuh.
+ * Maka saldo = SUM(total_idr) order paid/sent. Fee platform (3% Pro / 5% Free) adalah
+ * pendapatan platform di luar saldo kreator.
  */
 export async function getCreatorBalance(userId: string): Promise<CreatorBalance> {
   await ensureDbInitialized();
@@ -239,4 +242,38 @@ export async function updatePayoutStatus(
     createdAt: String(r.created_at),
     processedAt: r.processed_at ? String(r.processed_at) : undefined,
   };
+}
+
+export type AdminPayoutRequestItem = PayoutRequest & {
+  userName?: string;
+  userEmail?: string;
+};
+
+/**
+ * Mengambil seluruh permintaan penarikan dana dari semua kreator untuk keperluan admin platform.
+ */
+export async function getAllPayoutRequests(): Promise<AdminPayoutRequestItem[]> {
+  await ensureDbInitialized();
+  const res = await client.execute(`
+    SELECT pr.*, u.name as user_name, u.email as user_email
+    FROM payout_requests pr
+    LEFT JOIN users u ON pr.user_id = u.id
+    ORDER BY pr.created_at DESC;
+  `);
+
+  return res.rows.map((r: Record<string, unknown>) => ({
+    id: String(r.id),
+    userId: String(r.user_id),
+    userName: r.user_name ? String(r.user_name) : undefined,
+    userEmail: r.user_email ? String(r.user_email) : undefined,
+    amountIdr: Number(r.amount_idr),
+    bankName: String(r.bank_name),
+    accountNumber: String(r.account_number),
+    accountHolder: String(r.account_holder),
+    status: r.status as PayoutStatus,
+    adminNotes: r.admin_notes ? String(r.admin_notes) : undefined,
+    proofUrl: r.proof_url ? String(r.proof_url) : undefined,
+    createdAt: String(r.created_at),
+    processedAt: r.processed_at ? String(r.processed_at) : undefined,
+  }));
 }

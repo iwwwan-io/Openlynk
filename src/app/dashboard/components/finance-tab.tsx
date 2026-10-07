@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Wallet,
   ArrowUpRight,
@@ -11,6 +12,8 @@ import {
   AlertCircle,
   Loader2,
   RefreshCw,
+  ShieldCheck,
+  Download,
 } from "lucide-react";
 import {
   formatIDR,
@@ -18,9 +21,25 @@ import {
   type PayoutAccount,
   type PayoutRequest,
   type PayoutStatus,
+  type User,
+  type Order,
 } from "@/lib/types";
+import { exportFinanceToCSV } from "@/lib/export-csv";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-export function FinanceTab() {
+export function FinanceTab({
+  currentUser,
+  orders = [],
+}: {
+  currentUser?: User | null;
+  orders?: Order[];
+} = {}) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [balance, setBalance] = useState<CreatorBalance>({
@@ -50,9 +69,26 @@ export function FinanceTab() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
 
+  // Admin Payout States
+  const [adminRequests, setAdminRequests] = useState<
+    (PayoutRequest & { userName?: string; userEmail?: string })[]
+  >([]);
+  const [loadingAdminRequests, setLoadingAdminRequests] = useState(false);
+  const [selectedAdminReq, setSelectedAdminReq] = useState<
+    (PayoutRequest & { userName?: string; userEmail?: string }) | null
+  >(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminTargetStatus, setAdminTargetStatus] = useState<PayoutStatus>("completed");
+  const [adminNotesInput, setAdminNotesInput] = useState("");
+  const [adminProofInput, setAdminProofInput] = useState("");
+  const [submittingAdminAction, setSubmittingAdminAction] = useState(false);
+
   useEffect(() => {
     loadData();
-  }, []);
+    if (currentUser?.role === "admin") {
+      loadAdminRequests();
+    }
+  }, [currentUser?.role]);
 
   async function loadData(isRefresh = false) {
     if (isRefresh) setRefreshing(true);
@@ -149,6 +185,61 @@ export function FinanceTab() {
     }
   }
 
+  async function loadAdminRequests() {
+    setLoadingAdminRequests(true);
+    try {
+      const res = await fetch("/api/payouts/admin");
+      const data = await res.json();
+      if (res.ok) {
+        setAdminRequests(data.requests || []);
+      }
+    } catch {
+      // Ignore
+    } finally {
+      setLoadingAdminRequests(false);
+    }
+  }
+
+  function openAdminActionModal(
+    req: PayoutRequest & { userName?: string; userEmail?: string },
+    defaultStatus: PayoutStatus = "completed"
+  ) {
+    setSelectedAdminReq(req);
+    setAdminTargetStatus(defaultStatus);
+    setAdminNotesInput(req.adminNotes || "");
+    setAdminProofInput(req.proofUrl || "");
+    setShowAdminModal(true);
+  }
+
+  async function handleAdminActionSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedAdminReq) return;
+    setSubmittingAdminAction(true);
+    try {
+      const res = await fetch("/api/payouts/admin", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: selectedAdminReq.id,
+          status: adminTargetStatus,
+          adminNotes: adminNotesInput.trim() || undefined,
+          proofUrl: adminProofInput.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memperbarui status");
+      setShowAdminModal(false);
+      setSelectedAdminReq(null);
+      setSuccess(`Status permohonan #${selectedAdminReq.id} berhasil diubah ke ${adminTargetStatus}.`);
+      loadAdminRequests();
+      loadData(true);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan sistem");
+    } finally {
+      setSubmittingAdminAction(false);
+    }
+  }
+
   const statusBadge = (st: PayoutStatus) => {
     switch (st) {
       case "pending":
@@ -240,53 +331,73 @@ export function FinanceTab() {
       {/* Balance Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Saldo Tersedia */}
-        <div className="rounded-3xl border border-emerald-500/30 bg-emerald-500/5 p-5 shadow-sm space-y-1 relative overflow-hidden">
-          <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
-            Saldo Tersedia (Bisa Ditarik)
-          </span>
-          <div className="font-display text-2xl sm:text-3xl font-extrabold text-foreground">
+        <div className="rounded-3xl border border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-card to-card p-5 shadow-sm space-y-1 relative overflow-hidden ring-1 ring-emerald-500/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
+              Saldo Tersedia
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <Wallet className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="font-display text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             {formatIDR(balance.availableBalance)}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             Minimal penarikan {formatIDR(balance.minWithdrawal)}
           </p>
         </div>
 
         {/* Total Penghasilan */}
-        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Total Penjualan Bersih
-          </span>
-          <div className="font-display text-2xl font-bold text-foreground">
+        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1 transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Penjualan Bersih
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+              <ArrowUpRight className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="font-display text-2xl font-bold text-foreground tracking-tight">
             {formatIDR(balance.totalEarnings)}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             Akumulasi pesanan lunas
           </p>
         </div>
 
         {/* Sedang Antre */}
-        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Sedang Diproses
-          </span>
-          <div className="font-display text-2xl font-bold text-foreground">
+        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1 transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Sedang Diproses
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+              <Clock className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="font-display text-2xl font-bold text-foreground tracking-tight">
             {formatIDR(balance.pendingWithdrawals)}
           </div>
-          <p className="text-[11px] text-muted-foreground">
-            Dalam antrean pencairan dana
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Dalam antrean pencairan
           </p>
         </div>
 
         {/* Total Ditarik */}
-        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1">
-          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Total Telah Ditarik
-          </span>
-          <div className="font-display text-2xl font-bold text-foreground">
+        <div className="rounded-3xl border border-border/80 bg-card p-5 shadow-sm space-y-1 transition-all hover:border-foreground/20">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Total Telah Ditarik
+            </span>
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+              <CheckCircle2 className="h-4 w-4" />
+            </div>
+          </div>
+          <div className="font-display text-2xl font-bold text-foreground tracking-tight">
             {formatIDR(balance.totalWithdrawn)}
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             Transfer sukses ke rekening
           </p>
         </div>
@@ -327,12 +438,25 @@ export function FinanceTab() {
       {/* Withdrawal History Table */}
       <div className="rounded-3xl border border-border/80 bg-card p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between border-b border-border/60 pb-3">
-          <h3 className="font-display text-sm font-bold text-foreground">
-            Riwayat Penarikan Dana
-          </h3>
-          <span className="text-xs text-muted-foreground font-mono">
-            {history.length} transaksi
-          </span>
+          <div>
+            <h3 className="font-display text-sm font-bold text-foreground">
+              Riwayat Penarikan Dana & Mutasi
+            </h3>
+            <span className="text-[11px] text-muted-foreground font-mono">
+              {history.length} riwayat penarikan
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => exportFinanceToCSV(orders, history, "Keuangan")}
+            disabled={orders.length === 0 && history.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border/80 bg-background/80 hover:bg-muted px-3 py-1.5 text-xs font-semibold text-foreground transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
+            title="Unduh laporan mutasi keuangan ke CSV"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-500" />
+            <span className="hidden sm:inline">Export Mutasi CSV</span>
+          </button>
         </div>
 
         {history.length === 0 ? (
@@ -385,23 +509,101 @@ export function FinanceTab() {
         )}
       </div>
 
-      {/* Modal Pengaturan Rekening */}
-      {showAccountModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-primary" />
-                <span>Atur Rekening Pencairan</span>
+      {/* KHUSUS ADMIN PLATFORM: Payout Management */}
+      {currentUser?.role === "admin" && (
+        <div className="rounded-3xl border-2 border-primary/20 bg-card p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-border/60 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-bold text-primary mb-1">
+                <ShieldCheck className="h-3 w-3" />
+                <span>Panel Admin Platform</span>
+              </div>
+              <h3 className="font-display text-base font-bold text-foreground">
+                Semua Permohonan Penarikan Kreator
               </h3>
-              <button
-                type="button"
-                onClick={() => setShowAccountModal(false)}
-                className="text-muted-foreground hover:text-foreground text-xs"
-              >
-                ✕
-              </button>
             </div>
+            <button
+              type="button"
+              onClick={loadAdminRequests}
+              disabled={loadingAdminRequests}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-xs font-semibold hover:bg-muted"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingAdminRequests ? "animate-spin" : ""}`} />
+              <span>Muat Ulang Permohonan</span>
+            </button>
+          </div>
+
+          {loadingAdminRequests ? (
+            <div className="py-8 text-center text-xs text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span>Memuat permohonan admin...</span>
+            </div>
+          ) : adminRequests.length === 0 ? (
+            <div className="py-8 text-center text-xs text-muted-foreground">
+              Tidak ada permohonan penarikan yang tercatat di sistem.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-border/60 text-muted-foreground">
+                    <th className="pb-2.5 font-medium">Kreator</th>
+                    <th className="pb-2.5 font-medium">Rekening Tujuan</th>
+                    <th className="pb-2.5 font-medium">Nominal</th>
+                    <th className="pb-2.5 font-medium">Status</th>
+                    <th className="pb-2.5 font-medium text-right">Tindakan Admin</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/40">
+                  {adminRequests.map((req) => (
+                    <tr key={req.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="py-3">
+                        <div className="font-semibold text-foreground">{req.userName || "Kreator"}</div>
+                        <div className="text-[11px] text-muted-foreground">{req.userEmail}</div>
+                        <div className="text-[10px] text-muted-foreground/80 font-mono mt-0.5">
+                          ID: #{req.id} • {new Date(req.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" })}
+                        </div>
+                      </td>
+                      <td className="py-3">
+                        <div className="font-semibold text-foreground">{req.bankName}</div>
+                        <div className="text-[11px] font-mono text-muted-foreground">
+                          {req.accountNumber} ({req.accountHolder})
+                        </div>
+                      </td>
+                      <td className="py-3 font-bold font-mono text-foreground">
+                        {formatIDR(req.amountIdr)}
+                      </td>
+                      <td className="py-3">{statusBadge(req.status)}</td>
+                      <td className="py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => openAdminActionModal(req, req.status === "pending" ? "processing" : "completed")}
+                          className="rounded-full border border-border bg-foreground text-background px-3 py-1 text-xs font-bold hover:opacity-90 transition-opacity"
+                        >
+                          Kelola / Update
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Modal Pengaturan Rekening */}
+      <Dialog open={showAccountModal} onOpenChange={(v) => !v && setShowAccountModal(false)}>
+        <DialogContent className="max-w-md rounded-3xl border-border bg-card p-6 shadow-xl sm:rounded-3xl">
+          <DialogHeader className="border-b border-border/60 pb-3 text-left">
+            <DialogTitle className="font-display text-base font-bold text-foreground flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-primary" />
+              <span>Atur Rekening Pencairan</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Rekening tujuan pencairan dana penjualanmu
+            </DialogDescription>
+          </DialogHeader>
 
             <form onSubmit={handleSaveAccount} className="space-y-3.5">
               <div>
@@ -470,27 +672,21 @@ export function FinanceTab() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Modal Ajukan Penarikan Saldo */}
-      {showWithdrawModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-xl space-y-4">
-            <div className="flex items-center justify-between border-b border-border/60 pb-3">
-              <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
-                <ArrowUpRight className="h-4 w-4 text-emerald-500" />
-                <span>Tarik Saldo ke Rekening</span>
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowWithdrawModal(false)}
-                className="text-muted-foreground hover:text-foreground text-xs"
-              >
-                ✕
-              </button>
-            </div>
+      <Dialog open={showWithdrawModal} onOpenChange={(v) => !v && setShowWithdrawModal(false)}>
+        <DialogContent className="max-w-md rounded-3xl border-border bg-card p-6 shadow-xl sm:rounded-3xl">
+          <DialogHeader className="border-b border-border/60 pb-3 text-left">
+            <DialogTitle className="font-display text-base font-bold text-foreground flex items-center gap-2">
+              <ArrowUpRight className="h-4 w-4 text-emerald-500" />
+              <span>Tarik Saldo ke Rekening</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Ajukan pencairan saldo ke rekeningmu
+            </DialogDescription>
+          </DialogHeader>
 
             <form onSubmit={handleRequestWithdraw} className="space-y-4">
               <div className="rounded-2xl bg-muted/40 p-3.5 space-y-1 text-xs">
@@ -572,9 +768,109 @@ export function FinanceTab() {
                 </button>
               </div>
             </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Admin Kelola Status Penarikan */}
+      <Dialog open={showAdminModal && selectedAdminReq !== null} onOpenChange={(v) => !v && setShowAdminModal(false)}>
+        <DialogContent className="max-w-md rounded-3xl border-border bg-card p-6 shadow-xl sm:rounded-3xl">
+          <DialogHeader className="border-b border-border/60 pb-3 text-left">
+            <DialogTitle className="font-display text-base font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-primary" />
+              <span>Kelola Permohonan Penarikan</span>
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Ubah status dan catat bukti transfer
+            </DialogDescription>
+          </DialogHeader>
+          {selectedAdminReq && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-muted/30 p-3.5 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Kreator:</span>
+                <span className="font-semibold text-foreground">
+                  {selectedAdminReq.userName || "Kreator"} ({selectedAdminReq.userEmail})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Tujuan Transfer:</span>
+                <span className="font-mono font-semibold">
+                  {selectedAdminReq.bankName} - {selectedAdminReq.accountNumber} ({selectedAdminReq.accountHolder})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Nominal Bersih:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {formatIDR(selectedAdminReq.amountIdr)}
+                </span>
+              </div>
+            </div>
+
+            <form onSubmit={handleAdminActionSubmit} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Ubah Status Penarikan
+                </label>
+                <select
+                  value={adminTargetStatus}
+                  onChange={(e) => setAdminTargetStatus(e.target.value as PayoutStatus)}
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-hidden"
+                >
+                  <option value="pending">Antrean (Pending)</option>
+                  <option value="processing">Sedang Diproses (Processing)</option>
+                  <option value="completed">Selesai Ditransfer (Completed)</option>
+                  <option value="rejected">Tolak Permohonan (Rejected)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Catatan Admin / No. Referensi Transfer
+                </label>
+                <input
+                  type="text"
+                  value={adminNotesInput}
+                  onChange={(e) => setAdminNotesInput(e.target.value)}
+                  placeholder="Contoh: Ditransfer via BCA no ref: 2026100512345"
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1">
+                  Tautan Bukti Transfer (Opsional)
+                </label>
+                <input
+                  type="url"
+                  value={adminProofInput}
+                  onChange={(e) => setAdminProofInput(e.target.value)}
+                  placeholder="https://ik.imagekit.io/.../bukti-transfer.jpg"
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-2 text-xs text-foreground focus:outline-hidden"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAdminModal(false)}
+                  className="rounded-full border border-border px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingAdminAction}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-foreground text-background px-5 py-2 text-xs font-bold hover:opacity-90 disabled:opacity-40"
+                >
+                  {submittingAdminAction && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>Simpan Perubahan</span>
+                </button>
+              </div>
+            </form>
           </div>
-        </div>
-      )}
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

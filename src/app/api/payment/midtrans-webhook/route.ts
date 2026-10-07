@@ -31,22 +31,22 @@ export async function POST(req: Request) {
     if (result.newlyPaid && result.product?.kind === "digital" && result.product?.fileUrl) {
       const secureDownloadUrl = `/api/downloads/${result.order.id}?contact=${encodeURIComponent(result.order.buyerContact)}`;
       
-      // 1. Email (Resend / Log)
-      await sendDigitalEmail({
-        to: result.order.buyerContact,
-        productName: result.product.name,
-        fileUrl: secureDownloadUrl,
-      });
-
-      // 2. WhatsApp (Fonnte / Wablas / Webhook / Log)
-      await sendDigitalDeliveryWhatsApp({
-        buyerName: result.order.buyerName,
-        buyerContact: result.order.buyerContact,
-        productName: result.product.name,
-        creatorName: result.page?.name || "Kreator",
-        downloadUrl: secureDownloadUrl,
-        orderId: result.order.id,
-      });
+      // Jalankan notifikasi tanpa menggagalkan webhook bila provider eksternal mengalami latency/error
+      await Promise.allSettled([
+        sendDigitalEmail({
+          to: result.order.buyerContact,
+          productName: result.product.name,
+          fileUrl: secureDownloadUrl,
+        }).catch((err) => console.error("[webhook:email_error]", err)),
+        sendDigitalDeliveryWhatsApp({
+          buyerName: result.order.buyerName,
+          buyerContact: result.order.buyerContact,
+          productName: result.product.name,
+          creatorName: result.page?.name || "Kreator",
+          downloadUrl: secureDownloadUrl,
+          orderId: result.order.id,
+        }).catch((err) => console.error("[webhook:whatsapp_error]", err)),
+      ]);
     }
   } else if (["expire", "cancel", "deny"].includes(s)) {
     // Revert stok & kupon secara atomic jika sebelumnya pending

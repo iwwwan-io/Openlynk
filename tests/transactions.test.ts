@@ -44,7 +44,26 @@ describe("Integritas Transaksi & Sawer Donation Lifecycle", () => {
     expect(demo).toBeDefined();
     if (!demo) return;
 
-    const sawerCard = demo.bento.find((b) => b.type === "sawer");
+    let sawerCard = demo.bento.find((b) => b.type === "sawer");
+    if (!sawerCard) {
+      sawerCard = {
+        id: "b_sawer_test",
+        type: "sawer",
+        title: "Traktir Kopi & Dukung Kreator",
+        message: "Dukungan Anda membantu saya terus membuat konten!",
+        unitName: "Cangkir Kopi",
+        unitPrice: 15000,
+        targetAmount: 1000000,
+        currentAmount: 0,
+        size: "2x2",
+        pos: { x: 0, y: 10 },
+      };
+      demo.bento.push(sawerCard);
+      await client.execute({
+        sql: "UPDATE pages SET bento = ? WHERE id = ?;",
+        args: [JSON.stringify(demo.bento), demo.id],
+      });
+    }
     expect(sawerCard).toBeDefined();
     if (!sawerCard || sawerCard.type !== "sawer") return;
 

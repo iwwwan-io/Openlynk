@@ -83,8 +83,11 @@ export async function PATCH(req: Request) {
     darkMode?: boolean;
     image?: string;
     bannerImage?: string;
-    socials?: SocialLinks;
+    socials?: Record<string, string> | null;
     customDomain?: string | null;
+    metaPixelId?: string | null;
+    tiktokPixelId?: string | null;
+    googleAnalyticsId?: string | null;
   };
   if (!body.id) return NextResponse.json({ error: "id wajib" }, { status: 400 });
 
@@ -95,6 +98,7 @@ export async function PATCH(req: Request) {
   const db = await getDb();
   const page = db.pages.find((p) => p.id === body.id);
   if (!page) return NextResponse.json({ error: "page tidak ada" }, { status: 404 });
+  const isProUser = user?.role === "admin" || user?.plan === "pro";
   if (user && !page.userId) {
     page.userId = user.id;
   }
@@ -118,6 +122,20 @@ export async function PATCH(req: Request) {
     }
   }
   if (body.customDomain !== undefined) {
+    // P0: Custom domain hanya untuk Pro/Admin
+    if (
+      body.customDomain !== null &&
+      body.customDomain.trim() !== "" &&
+      !isProUser
+    ) {
+      return NextResponse.json(
+        {
+          error: "Custom domain hanya tersedia untuk paket Pro. Upgrade ke Pro untuk mengaktifkan.",
+          requiresPro: true,
+        },
+        { status: 403 }
+      );
+    }
     if (body.customDomain === null || body.customDomain.trim() === "") {
       page.customDomain = undefined;
     } else {
@@ -155,6 +173,15 @@ export async function PATCH(req: Request) {
 
       page.customDomain = rawDomain;
     }
+  }
+  if (body.metaPixelId !== undefined) {
+    page.metaPixelId = body.metaPixelId ? body.metaPixelId.trim().slice(0, 50) : undefined;
+  }
+  if (body.tiktokPixelId !== undefined) {
+    page.tiktokPixelId = body.tiktokPixelId ? body.tiktokPixelId.trim().slice(0, 50) : undefined;
+  }
+  if (body.googleAnalyticsId !== undefined) {
+    page.googleAnalyticsId = body.googleAnalyticsId ? body.googleAnalyticsId.trim().slice(0, 50) : undefined;
   }
   if (body.theme !== undefined && (THEME_NAMES as string[]).includes(body.theme))
     page.theme = body.theme as (typeof THEME_NAMES)[number];

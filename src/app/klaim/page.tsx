@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { GradientButton } from "@/components/ui";
+import { GradientButton } from "@/components/primitives";
 
 function KlaimContent() {
   const router = useRouter();

@@ -12,6 +12,42 @@
   --muted-foreground: #71717a;
   --primary: #18181b;
   --primary-foreground: #fafafa;
+  --accent: #2563eb;
+  --accent-foreground: #ffffff;
+  --secondary: #ececef;
+  --secondary-foreground: #3f3f46;
+  --destructive: #e11d48;
+  --destructive-foreground: #fafafa;
+  --popover: #ffffff;
+  --popover-foreground: #18181b;
+  --ring: #2563eb;
+  --input: #d4d4d8;
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.375rem;
+  --radius-xl: 1rem;
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #fafafa;
+  --card: #121215;
+  --card-foreground: #fafafa;
+  --border: #27272a;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --primary: #fafafa;
+  --primary-foreground: #18181b;
+  --accent: #3b82f6;
+  --accent-foreground: #ffffff;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --destructive: #fb7185;
+  --destructive-foreground: #09090b;
+  --popover: #121215;
+  --popover-foreground: #fafafa;
+  --ring: #3b82f6;
+  --input: #3f3f46;
 }
 
 @theme inline {
@@ -24,6 +60,16 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-display);
@@ -32,6 +78,68 @@
 body {
   background: var(--background);
   color: var(--foreground);
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Fixed navbar offset — anchor sections never hide under the navbar */
+section[id] {
+  scroll-margin-top: 88px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-fade-in,
+  .animate-fade-up {
+    animation: none;
+  }
+}
+
+/* Glassmorphism & modern utilities */
+.glass-panel {
+  background: color-mix(in srgb, var(--card) 85%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+/* Mobile Simulator Phone Frame */
+.phone-mockup-frame {
+  position: relative;
+  border-radius: 42px;
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.25), 0 0 0 8px #1e293b, 0 0 0 10px #334155;
+  background: var(--background);
+  overflow: hidden;
+}
+
+.dark .phone-mockup-frame {
+  box-shadow: 0 25px 70px -10px rgba(0, 0, 0, 0.8), 0 0 0 8px #18181b, 0 0 0 10px #27272a;
+}
+
+/* Subtle glow effect for badges & accents */
+.glow-accent {
+  box-shadow: 0 0 20px -3px var(--color-accent);
+}
+
+/* Custom minimal scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
 }
 
 @keyframes fade-in {

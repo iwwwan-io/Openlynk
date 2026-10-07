@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { toast } from "sonner";
 import { usePathname, useRouter } from "next/navigation";
 import type { Page, Product, Order, BentoSize, Coupon, SocialLinks, User } from "@/lib/types";
 import { DashboardHeader, type DashboardTab } from "../components/dashboard-header";
+import { ConfirmDialog } from "@/components/confirm";
 import { PagesOverview } from "../components/pages-overview";
 import { StudioWorkspace, type StudioSubtab } from "../components/studio-workspace";
 import { StoreTab } from "../components/store-tab";
@@ -77,6 +79,10 @@ export default function Dashboard() {
   const [showNewPageModal, setShowNewPageModal] = useState(false);
   const [showAddCardModal, setShowAddCardModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<
+    { kind: "page" | "product" | "coupon"; id: string; label: string } | null
+  >(null);
+  const [deleting, setDeleting] = useState(false);
 
   const active = pages.find((p) => p.id === activeId) ?? pages[0];
 
@@ -246,7 +252,7 @@ export default function Dashboard() {
     const res = await fetch(url, { method: "POST", headers: headers(), body: JSON.stringify(body) });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error ?? "Gagal memproses aksi");
+      toast.error(err.error ?? "Gagal memproses aksi");
     } else {
       await refresh();
     }
@@ -260,7 +266,7 @@ export default function Dashboard() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error ?? "Gagal memproses aksi");
+      toast.error(err.error ?? "Gagal memproses aksi");
     } else {
       await refresh();
     }
@@ -280,13 +286,28 @@ export default function Dashboard() {
   }
 
   async function handleDeletePage(id: string, slugName: string) {
-    if (!confirm(`Hapus halaman /${slugName} beserta seluruh produk & kartu bentonya?`)) return;
+    setPendingDelete({ kind: "page", id, label: `Hapus halaman /${slugName} beserta seluruh produk & kartu bentonya?` });
+  }
+
+  async function executeDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    try {
+      if (pendingDelete.kind === "page") await doDeletePage(pendingDelete.id);
+      else if (pendingDelete.kind === "product") await doDeleteProduct(pendingDelete.id);
+      else await doDeleteCoupon(pendingDelete.id);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function doDeletePage(id: string) {
     const t = token();
     const res = await fetch(`/api/pages?id=${id}`, {
       method: "DELETE",
       headers: t ? { Authorization: `Bearer ${t}` } : undefined,
     });
-    if (!res.ok) alert((await res.json()).error ?? "Gagal menghapus");
+    if (!res.ok) toast.error((await res.json()).error ?? "Gagal menghapus");
     else {
       await refresh("");
       updateUrl("pages", undefined, "studio", true);
@@ -369,7 +390,10 @@ export default function Dashboard() {
     form.append("file", file);
     const res = await fetch("/api/uploads", { method: "POST", body: form });
     const json = await res.json();
-    if (!res.ok) return alert(json.error ?? "Gagal upload file");
+    if (!res.ok) {
+      toast.error(json.error ?? "Gagal upload file");
+      return;
+    }
     await patch("/api/products", { id: prodId, fileUrl: json.url });
   }
 
@@ -390,7 +414,10 @@ export default function Dashboard() {
   }
 
   async function handleDeleteProduct(id: string, productName: string) {
-    if (!confirm(`Hapus produk "${productName}"? Kartu produk ini di bento juga akan terhapus.`)) return;
+    setPendingDelete({ kind: "product", id, label: `Hapus produk "${productName}"? Kartu produk ini di bento juga akan terhapus.` });
+  }
+
+  async function doDeleteProduct(id: string) {
     const t = token();
     const res = await fetch(`/api/products?id=${id}`, {
       method: "DELETE",
@@ -398,7 +425,7 @@ export default function Dashboard() {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      alert(err.error ?? "Gagal menghapus produk");
+      toast.error(err.error ?? "Gagal menghapus produk");
     } else {
       await refresh();
     }
@@ -440,13 +467,16 @@ export default function Dashboard() {
   }
 
   async function handleDeleteCoupon(id: string) {
-    if (!confirm("Hapus kupon ini?")) return;
+    setPendingDelete({ kind: "coupon", id, label: "Hapus kupon ini? Kupon tidak bisa dikembalikan." });
+  }
+
+  async function doDeleteCoupon(id: string) {
     const t = token();
     const res = await fetch(`/api/coupons?id=${id}`, {
       method: "DELETE",
       headers: t ? { Authorization: `Bearer ${t}` } : undefined,
     });
-    if (!res.ok) alert((await res.json()).error ?? "Gagal menghapus kupon");
+    if (!res.ok) toast.error((await res.json()).error ?? "Gagal menghapus kupon");
     else await refresh();
   }
 
@@ -556,7 +586,7 @@ export default function Dashboard() {
         {/* TAB 5: FINANCE & WITHDRAWALS */}
         {tab === "finance" && (
           <div className="animate-in fade-in duration-200">
-            <FinanceTab />
+            <FinanceTab currentUser={currentUser} />
           </div>
         )}
 
@@ -606,6 +636,24 @@ export default function Dashboard() {
           setCurrentUser(updatedUser);
           refresh();
         }}
+      />
+
+      {/* KONFIRMASI HAPUS */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(v) => !v && setPendingDelete(null)}
+        title={
+          pendingDelete?.kind === "page"
+            ? "Hapus halaman?"
+            : pendingDelete?.kind === "product"
+              ? "Hapus produk?"
+              : "Hapus kupon?"
+        }
+        description={pendingDelete?.label}
+        confirmLabel="Ya, hapus"
+        danger
+        busy={deleting}
+        onConfirm={executeDelete}
       />
     </div>
   );

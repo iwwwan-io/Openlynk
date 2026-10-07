@@ -105,6 +105,9 @@ export async function ensureDbInitialized(): Promise<void> {
           avatar TEXT,
           role TEXT NOT NULL DEFAULT 'creator',
           plan TEXT NOT NULL DEFAULT 'free',
+          suspended INTEGER NOT NULL DEFAULT 0,
+          suspended_at TEXT,
+          suspended_reason TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );`,
@@ -240,16 +243,44 @@ export async function ensureDbInitialized(): Promise<void> {
       await client.execute("ALTER TABLE pages ADD COLUMN socials TEXT;").catch(() => {});
       await client.execute("ALTER TABLE pages ADD COLUMN custom_domain TEXT;").catch(() => {});
       await client.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_pages_custom_domain ON pages(custom_domain);").catch(() => {});
+      await client.execute("ALTER TABLE pages ADD COLUMN meta_pixel_id TEXT;").catch(() => {});
+      await client.execute("ALTER TABLE pages ADD COLUMN tiktok_pixel_id TEXT;").catch(() => {});
+      await client.execute("ALTER TABLE pages ADD COLUMN google_analytics_id TEXT;").catch(() => {});
+      await client.execute("ALTER TABLE products ADD COLUMN delivery_type TEXT DEFAULT 'download';").catch(() => {});
+      await client.execute("ALTER TABLE products ADD COLUMN access_url TEXT;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN coupon_code TEXT;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN discount_idr INTEGER DEFAULT 0;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN download_count INTEGER NOT NULL DEFAULT 0;").catch(() => {});
       await client.execute("ALTER TABLE orders ADD COLUMN last_downloaded_at TEXT;").catch(() => {});
       await client.execute("ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free';").catch(() => {});
+      await client.execute("ALTER TABLE users ADD COLUMN suspended INTEGER NOT NULL DEFAULT 0;").catch(() => {});
+      await client.execute("ALTER TABLE users ADD COLUMN suspended_at TEXT;").catch(() => {});
+      await client.execute("ALTER TABLE users ADD COLUMN suspended_reason TEXT;").catch(() => {});
+      await client.execute(`CREATE TABLE IF NOT EXISTS admin_audit_log (
+        id TEXT PRIMARY KEY,
+        admin_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        target_type TEXT,
+        target_id TEXT,
+        notes TEXT,
+        created_at TEXT NOT NULL
+      );`).catch(() => {});
+      await client.execute("CREATE INDEX IF NOT EXISTS idx_admin_audit_log_admin_id ON admin_audit_log(admin_id);").catch(() => {});
+      await client.execute("CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created_at ON admin_audit_log(created_at);").catch(() => {});
+      await client.execute(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`).catch(() => {});
+      await client.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);").catch(() => {});
+      await client.execute("CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);").catch(() => {});
 
       // Inisialisasi Demo User default (demo@openlynk.id / password123) jika belum ada
       const userCountRes = await client.execute("SELECT COUNT(*) as c FROM users;");
       const userCount = Number(userCountRes.rows[0]?.c ?? 0);
-      if (userCount === 0) {
+      if (userCount === 0 && (process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_USER === "true")) {
         // Pre-computed scrypt hash untuk 'password123'
         const defaultHash = "1e9bc464e9ff13a9af311b7b31a3e8ee:3e62c47e6cd079045ea60970f0653b3149bf6742195295034b9c328df6c3dc90477a51973557d2566eeef9a316d7fc794da8332e4d4d96c6146f2a6afd5815e8";
         const now = new Date().toISOString();
@@ -260,22 +291,36 @@ export async function ensureDbInitialized(): Promise<void> {
         });
       }
 
-      // Cek apakah tabel pages kosong, jika ya: migrasikan dari db.json atau masukkan seed
+      // Cek apakah tabel pages kosong, jika ya: migrasikan dari db.json atau masukkan seed.
+      // PROD: tidak pernah seed otomatis — operator register sendiri.
+      // Override darurat: SEED_DEMO_USER=true.
       const countRes = await client.execute("SELECT COUNT(*) as c FROM pages;");
       const count = Number(countRes.rows[0]?.c ?? 0);
 
-      if (count === 0) {
+      const seedAllowed = process.env.NODE_ENV !== "production" || process.env.SEED_DEMO_USER === "true";
+      if (count === 0 && seedAllowed) {
         await migrateFromDbJsonOrSeed();
       }
 
       // Selalu pastikan halaman tanpa pemilik terhubung ke usr_demo
-      await client.execute("UPDATE pages SET user_id = 'usr_demo' WHERE user_id IS NULL;");
+      // (hanya bila usr_demo masih ada — pasca-purge ia bisa sudah dihapus)
+      const demoUser = await client.execute("SELECT id FROM users WHERE id = 'usr_demo' LIMIT 1;");
+      if (demoUser.rows.length > 0) {
+        await client.execute("UPDATE pages SET user_id = 'usr_demo' WHERE user_id IS NULL;");
+      }
 
-      // Cek jika kupon masih kosong, tambahkan demo kupon
+      // Cek jika kupon masih kosong, tambahkan demo kupon (non-prod saja, lihat seedAllowed di atas).
+      // Lewati kupon yang page-nya sudah tidak ada agar tidak melanggar FOREIGN KEY.
       const couponCountRes = await client.execute("SELECT COUNT(*) as c FROM coupons;");
         const couponCount = Number(couponCountRes.rows[0]?.c ?? 0);
-        if (couponCount === 0) {
+        if (couponCount === 0 && seedAllowed) {
+          const pageRows = await client.execute("SELECT id FROM pages;");
+          const pageIds = new Set(pageRows.rows.map((r) => String((r as Record<string, unknown>).id)));
           for (const c of defaultSeed.coupons) {
+            if (!pageIds.has(c.pageId)) {
+              console.warn(`[db] lewati seed kupon ${c.code}: page ${c.pageId} tidak ada`);
+              continue;
+            }
             await client.execute({
               sql: `INSERT OR REPLACE INTO coupons (id, page_id, code, discount_type, discount_value, min_order_idr, max_uses, used_count, is_active, expires_at, created_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

@@ -83,7 +83,7 @@
 - **Storage**: [ImageKit](https://imagekit.io/) SDK (dengan fallback lokal otomatis)
 - **Payment**: [Midtrans Snap API](https://midtrans.com/)
 - **Email**: [Resend](https://resend.com/)
-- **Testing**: `bun test` (70 Unit & Integration Tests)
+- **Testing**: `bun test` (84 Unit & Integration Tests)
 
 ---
 
@@ -93,37 +93,28 @@
 openlynk/
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/             # Halaman Masuk & Daftar Kreator
-│   │   ├── [slug]/             # Halaman Publik Profil Bento & Checkout
-│   │   ├── akses/              # Portal Akses Unduhan Pembeli
-│   │   ├── dashboard/          # Studio Kreator, Bento Editor, Toko, Kupon, Dompet
-│   │   └── api/                # REST API Endpoints:
-│   │       ├── auth/           # Login, Register, Logout, Me
-│   │       ├── buyer/          # Akses pesanan pembeli
-│   │       ├── coupons/        # CRUD & validasi kupon
-│   │       ├── downloads/      # Endpoint download berkas digital aman
-│   │       ├── orders/         # Manajemen pesanan kreator
-│   │       ├── payment/        # Inisialisasi snap & Midtrans webhook
-│   │       ├── payouts/        # Permohonan pencairan dana & rekening bank
-│   │       ├── storage/        # Storage token ImageKit
-│   │       └── uploads/        # Upload berkas & gambar
-│   ├── components/             # Komponen global (checkout modal, navbar, dll)
-│   ├── db/
-│   │   └── schema.ts           # Skema Drizzle ORM (Users, Pages, Orders, Coupons, dll)
+│   │   ├── masuk|daftar|lupa-password/ # Auth kreator + reset password
+│   │   ├── klaim|jelajahi|akses/  # Klaim slug, eksplorasi, portal pembeli
+│   │   ├── [slug]/             # Halaman publik profil bento & checkout
+│   │   ├── dashboard/          # Studio kreator (bento, toko, kupon, analitik, dompet)
+│   │   ├── admin/              # Panel admin platform (guard role=admin)
+│   │   └── api/                # REST API:
+│   │       ├── auth/           # Login, register, logout, me, forgot/reset, Google OAuth
+│   │       ├── admin/          # Overview, users, orders, audit, bootstrap
+│   │       ├── buyer|coupons|downloads|orders|payouts/ # Alur pembeli & kreator
+│   │       ├── payment/        # Snap & Midtrans webhook
+│   │       └── uploads|storage|track|subscribe|analytics|health
+│   ├── components/
+│   │   ├── ui/                 # Komponen shadcn (button, dialog, table, dst.)
+│   │   └── *.tsx               # ConfirmDialog, DataPagination, StatusBadge, Navbar, dll
 │   └── lib/
-│       ├── auth.ts             # Password hashing & JWT session management
-│       ├── coupons.ts          # Mesin kalkulasi diskon & kupon
-│       ├── db.ts               # Inisialisasi SQLite database store
-│       ├── digital-downloads.ts# Verifikasi dan pengiriman berkas digital
-│       ├── email.ts            # Handler email transaksional Resend
-│       ├── finance.ts          # Kalkulasi saldo & alur penarikan dana
-│       ├── midtrans.ts         # Integrasi Snap & Webhook parser
-│       ├── storage.ts          # Integrasi ImageKit & local fallback
-│       ├── types.ts            # Type definitions TypeScript
-│       └── whatsapp.ts         # Gateway WhatsApp (Fonnte/Wablas)
-├── data/                       # Penyimpanan database lokal SQLite (openlynk.db)
-├── tests/                      # 10 berkas pengujian otomatis (70 tests)
-└── public/                     # Aset statis & berkas demo
+│       ├── auth|admin|google|midtrans|payout|ratelimit # Backend inti
+│       ├── db/{index,schema,seed-data}.ts # SQLite/Turso + migrasi + seed
+│       ├── email|whatsapp|storage|export-csv|validate|types|themes|grid|embeds
+├── data/                       # SQLite lokal (dev) — prod memakai Turso
+├── tests/                      # 12 berkas pengujian otomatis (84 tests)
+├── public/                     # Aset statis & berkas demo
+└── components.json             # Konfigurasi shadcn/ui
 ```
 
 ---
@@ -176,7 +167,9 @@ Buka browser dan akses [http://localhost:3000](http://localhost:3000).
 | `WABLAS_DOMAIN` | Domain server Wablas (default: `https://kudus.wablas.com`) | Opsional |
 | `RESEND_API_KEY` | API Key layanan email Resend | Opsional (Log konsol jika kosong) |
 | `EMAIL_FROM` | Alamat pengirim email (contoh: `OpenLynk <noreply@openlynk.id>`) | Opsional |
-| `ADMIN_TOKEN` | Kunci proteksi endpoint admin kustom | Opsional |
+| `ADMIN_TOKEN` | Kunci operator platform (bootstrap admin, bypass darurat) | Wajib di prod |
+| `GOOGLE_CLIENT_ID` | Client ID OAuth Google (tombol login disembunyikan bila kosong) | Opsional |
+| `GOOGLE_CLIENT_SECRET` | Client Secret OAuth Google | Opsional |
 
 ---
 
@@ -232,7 +225,7 @@ bun test
 - `tests/finance.test.ts`: Kalkulasi saldo kreator, manajemen rekening bank pencairan, validasi saldo minimum, dan lifecycle penarikan dana.
 - `tests/growth_and_domains.test.ts`: Normalisasi dan persistensi custom domain kreator.
 
-Hasil saat ini: **70 pass, 0 fail (277 expect calls)**.
+Hasil saat ini: **84 pass, 0 fail (334 expect calls)**.
 
 ---
 

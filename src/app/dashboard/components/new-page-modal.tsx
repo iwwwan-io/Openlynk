@@ -1,7 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface NewPageModalProps {
   isOpen: boolean;
@@ -52,34 +59,25 @@ export function NewPageModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-0 sm:p-4 backdrop-blur-xs animate-in fade-in"
-      onClick={onClose}
-    >
-      <div
-        className="w-full max-w-md rounded-t-[32px] sm:rounded-3xl border border-border/80 bg-card p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-in slide-in-from-bottom sm:slide-in-from-bottom-0 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Mobile Grabber Handle */}
-        <div className="mx-auto h-1 w-10 rounded-full bg-muted-foreground/30 sm:hidden mb-1" />
-
-        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+    <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md rounded-3xl border-border/80 bg-card p-6 shadow-2xl sm:rounded-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="border-b border-border/60 pb-3 text-left">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-foreground text-background">
               <Plus className="h-4 w-4" />
             </span>
-            <h3 className="font-display text-base font-bold text-foreground">
-              {isLimitReached ? "Batas Halaman Tercapai" : "Buat Halaman Profil Baru"}
-            </h3>
+            <div>
+              <DialogTitle className="font-display text-base font-bold text-foreground">
+                {isLimitReached ? "Batas Halaman Tercapai" : "Buat Halaman Profil Baru"}
+              </DialogTitle>
+              {!isLimitReached && (
+                <DialogDescription className="text-xs text-muted-foreground">
+                  Pilih nama dan slug untuk halaman barumu
+                </DialogDescription>
+              )}
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground p-1 transition-colors rounded-full cursor-pointer"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+        </DialogHeader>
 
         {isLimitReached ? (
           <div className="space-y-4 py-2 text-center sm:text-left">
@@ -201,7 +199,7 @@ export function NewPageModal({
             </form>
           </>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
