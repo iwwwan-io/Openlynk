@@ -263,9 +263,9 @@ export function DashboardHeader({
                     )}
                   </div>
 
-                  {/* Option: Buat Halaman Baru */}
-                  {onNewPageClick && (
-                    <div className="border-t border-border/60 pt-1.5 mt-1.5">
+                  {/* Option: Buat Halaman Baru & Overview */}
+                  <div className="border-t border-border/60 pt-1.5 mt-1.5 space-y-1">
+                    {onNewPageClick && (
                       <button
                         type="button"
                         onClick={() => {
@@ -277,8 +277,16 @@ export function DashboardHeader({
                         <Plus className="h-3.5 w-3.5 text-emerald-500" />
                         <span>Buat Halaman Profil Baru</span>
                       </button>
-                    </div>
-                  )}
+                    )}
+                    <Link
+                      href="/dashboard/overview"
+                      onClick={() => setPageDropdownOpen(false)}
+                      className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-border/70 hover:bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <span>Lihat Semua Halaman</span>
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
