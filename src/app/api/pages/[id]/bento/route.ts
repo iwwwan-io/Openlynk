@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser, canManagePage } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/store";
 import { uid } from "@/lib/types";
+import { revalidatePagePaths } from "@/lib/revalidate";
 
 export async function POST(
   req: Request,
@@ -307,5 +308,6 @@ export async function POST(
   }
   page.updatedAt = new Date().toISOString();
   await saveDb(db);
+  revalidatePagePaths(page.slug, page.customDomain);
   return NextResponse.json(page);
 }

@@ -5,8 +5,24 @@ import { getDb } from "@/lib/store";
 import { themeVars } from "@/lib/themes";
 import { ProductDetailView } from "./product-detail-view";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Incremental Static Regeneration (ISR): revalidate at most once every 60 seconds
+export const revalidate = 60;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    const db = await getDb();
+    const params: { slug: string; productId: string }[] = [];
+    for (const page of db.pages.filter((p) => p.isPublic)) {
+      for (const prod of db.products.filter((p) => p.pageId === page.id && p.isActive)) {
+        params.push({ slug: page.slug, productId: prod.id });
+      }
+    }
+    return params;
+  } catch {
+    return [];
+  }
+}
 
 export async function generateMetadata({
   params,

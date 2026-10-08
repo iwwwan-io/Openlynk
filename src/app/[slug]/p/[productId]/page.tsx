@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
+export const revalidate = 60;
+export const dynamicParams = true;
+
 export default async function ShortProductRoutePage({
   params,
 }: {

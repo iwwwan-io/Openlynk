@@ -24,8 +24,22 @@ import { SocialBar } from "./social-bar";
 
 import type { Metadata, ResolvingMetadata } from "next";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Incremental Static Regeneration (ISR): revalidate at most once every 60 seconds
+export const revalidate = 60;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    const db = await getDb();
+    return db.pages
+      .filter((p) => p.isPublic)
+      .map((p) => ({
+        slug: p.slug,
+      }));
+  } catch {
+    return [];
+  }
+}
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },

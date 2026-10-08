@@ -3,8 +3,24 @@ import { getDb } from "@/lib/store";
 import ProductDetailPage, { generateMetadata as generateProductMetadata } from "../../../../[slug]/products/[productId]/page";
 import type { Metadata } from "next";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Incremental Static Regeneration (ISR): revalidate at most once every 60 seconds
+export const revalidate = 60;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  try {
+    const db = await getDb();
+    const params: { domain: string; productId: string }[] = [];
+    for (const page of db.pages.filter((p) => p.isPublic && p.customDomain)) {
+      for (const prod of db.products.filter((p) => p.pageId === page.id && p.isActive)) {
+        params.push({ domain: page.customDomain!, productId: prod.id });
+      }
+    }
+    return params;
+  } catch {
+    return [];
+  }
+}
 
 export async function generateMetadata({
   params,
