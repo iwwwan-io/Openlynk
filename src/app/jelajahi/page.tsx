@@ -3,6 +3,9 @@ import { getDb } from "@/lib/store";
 import { HomeFooter, NavbarShell } from "@/components/site";
 import { GradientButton } from "@/components/primitives";
 
+// Incremental Static Regeneration (ISR): revalidate at most once every 60 seconds
+export const revalidate = 60;
+
 export default async function Explore() {
   const db = await getDb();
   const pages = db.pages.filter((p) => p.isPublic);

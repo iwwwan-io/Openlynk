@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser, canManagePage } from "@/lib/auth";
 import { getDb, saveDb } from "@/lib/store";
 import { uid } from "@/lib/types";
+import { revalidateProductPaths } from "@/lib/revalidate";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -45,6 +46,7 @@ export async function POST(req: Request) {
   };
   db.products.push(product);
   await saveDb(db);
+  revalidateProductPaths(page.slug, product.id, page.customDomain);
   return NextResponse.json(product, { status: 201 });
 }
 
@@ -80,6 +82,8 @@ export async function PATCH(req: Request) {
   if (body.imageUrl !== undefined) p.imageUrl = body.imageUrl.slice(0, 500);
   if (body.fileUrl !== undefined) p.fileUrl = body.fileUrl.slice(0, 500);
   await saveDb(db);
+  const targetPage = db.pages.find((pg) => pg.id === p.pageId);
+  revalidateProductPaths(targetPage?.slug, p.id, targetPage?.customDomain);
   return NextResponse.json(p);
 }
 
@@ -106,5 +110,7 @@ export async function DELETE(req: Request) {
     );
   }
   await saveDb(db);
+  const targetPage = db.pages.find((pg) => pg.id === gone.pageId);
+  revalidateProductPaths(targetPage?.slug, gone.id, targetPage?.customDomain);
   return NextResponse.json({ ok: true });
 }

@@ -18,7 +18,6 @@ const geistMono = Geist_Mono({
 const display = Plus_Jakarta_Sans({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
 });
 
 export const viewport: Viewport = {

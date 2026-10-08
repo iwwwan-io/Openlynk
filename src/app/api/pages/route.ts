@@ -4,6 +4,7 @@ import { getDb, saveDb } from "@/lib/store";
 import { THEME_NAMES } from "@/lib/themes";
 import { uid, type SocialLinks, type Page } from "@/lib/types";
 import { validSlug } from "@/lib/validate";
+import { revalidatePagePaths } from "@/lib/revalidate";
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
   };
   db.pages.push(page);
   await saveDb(db);
+  revalidatePagePaths(page.slug, page.customDomain);
   return NextResponse.json(page, { status: 201 });
 }
 
@@ -190,6 +192,7 @@ export async function PATCH(req: Request) {
   if (body.darkMode !== undefined) page.darkMode = body.darkMode;
   page.updatedAt = new Date().toISOString();
   await saveDb(db);
+  revalidatePagePaths(page.slug, page.customDomain);
   return NextResponse.json(page);
 }
 
@@ -211,5 +214,6 @@ export async function DELETE(req: Request) {
   const [gone] = db.pages.splice(i, 1);
   db.products = db.products.filter((p) => p.pageId !== gone.id);
   await saveDb(db);
+  revalidatePagePaths(gone.slug, gone.customDomain);
   return NextResponse.json({ ok: true });
 }
